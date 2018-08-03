@@ -2,7 +2,6 @@
 # Computation
 #
 scipy
-tensorflow-gpu
 #
 # Plotting
 #

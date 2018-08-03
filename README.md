@@ -5,7 +5,7 @@ We implement the [method](http://arxiv.org/abs/1205.1925) described by Sohl-Dick
 in their paper "Hamiltonian Annealed Importance Sampling for partition function estimation".
 
 
-### Previous related implementations
+### Related implementations
 
 We have used ideas and built upon the code from the following repositories:
 
@@ -21,7 +21,16 @@ We have used ideas and built upon the code from the following repositories:
 
 ### Installation
 
-Install the project
+Install either the GPU version of TensorFlow (I don't know why but `tensorflow-gpu==1.8` and
+`tensorflow-gpu==1.9` are >10x slower than 1.7 on my machine)
+```bash
+pip install tensorflow-gpu==1.7
+```
+or the CPU version
+```bash
+pip install tensorflow
+```
+then install the project
 ```bash
 pip install git+https://github.com/JohnReid/HAIS
 ```
