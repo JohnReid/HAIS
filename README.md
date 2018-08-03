@@ -9,7 +9,7 @@ in their paper "Hamiltonian Annealed Importance Sampling for partition function 
 
 We have used ideas and built upon the code from the following repositories:
 
-  - BayesFlow TensorFlow 1.4 - 1.6 [contribution](https://www.tensorflow.org/versions/r1.6/api_docs/python/tf/contrib/bayesflow/hmc/ais_chain)
+  - BayesFlow TensorFlow 1.4 - 1.6 [contribution](https://www.tensorflow.org/versions/r1.6/api_docs/python/tf/contrib/bayesflow/hmc/ais_chain).
     This is now integrated into [TensorFlow Probability](https://github.com/tensorflow/probability).
   - Sohl-Dickstein's Matlab [implementation](https://github.com/Sohl-Dickstein/Hamiltonian-Annealed-Importance-Sampling)
   - Xuechen Li's PyTorch (0.2.0) [implementation](https://github.com/lxuechen/BDMC) of Bi-Directional Monte Carlo
@@ -29,5 +29,4 @@ pip install git+https://github.com/JohnReid/HAIS
 
 ### Who do I talk to?
 
-[John Reid](https://twitter.com/__Reidy__)
-[Halil Bilgin](https://twitter.com/bilginhalil)
+[John Reid](https://twitter.com/__Reidy__) or [Halil Bilgin](https://twitter.com/bilginhalil)
