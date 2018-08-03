@@ -1,0 +1,154 @@
+#!/usr/bin/env python
+
+"""
+Test our HAIS implementation on example 1a from http://arxiv.org/abs/1205.1925
+
+We name the latent variable 'z' in place of 'a'
+"""
+
+
+import tensorflow as tf
+import numpy as np
+from hais.ais import AIS, get_schedule
+import matplotlib.pyplot as plt
+from matplotlib import lines
+import seaborn as sns
+import scipy.stats as st
+import time
+tfd = tf.contrib.distributions
+
+
+# %load_ext autoreload
+# %autoreload 2
+
+
+#
+# Constants
+#
+# RNG seed
+SEED = 41
+#
+# HMC AIS
+N_ITER = 3500
+N_CHAINS = 400
+#
+# Model
+BATCH_SIZE = 99
+M = 80  # x dimensions
+L =  5  # z dimensions
+SIGMA_N = .1
+
+#
+# Seed RNGs
+print('Seeding RNGs')
+np.random.seed(SEED)
+tf.set_random_seed(SEED)
+
+
+#
+# Sample model
+print('Sampling model')
+#
+# Sample phi
+phi = st.norm.rvs(size=(M, L)).astype(dtype=np.float32)
+#
+# Sample z
+z = st.norm.rvs(size=(BATCH_SIZE, L)).astype(dtype=np.float32)
+z.shape
+#
+# Sample x
+x_loc = (phi@z.T).T
+x_loc.shape
+px = st.norm(loc=x_loc, scale=SIGMA_N)
+x = px.rvs(size=(BATCH_SIZE, M))
+x.shape
+
+#
+# True marginal likelihood
+true_Sigma = phi@phi.T + np.diag(SIGMA_N**2 * np.ones(M))
+lp_true = st.multivariate_normal.logpdf(x, cov=true_Sigma)
+lp_true.shape
+print('Calculated true marginal log likelihood(s): {}'.format(lp_true))
+
+#
+# Tensors
+z_prior = tfd.MultivariateNormalDiag(loc=np.zeros(L, dtype=np.float32))
+tf_phi = tf.constant(phi)
+x_ph = tf.placeholder(tf.float32, [BATCH_SIZE, M], name='x')
+
+
+def log_likelihood(z):
+  "The log pdf of the conditional distribution of x given z."
+  #
+  assert (BATCH_SIZE, N_CHAINS, L) == z.shape
+  assert (M, L) == tf_phi.shape
+  assert (BATCH_SIZE, M) == x_ph.shape
+  loc = tf.squeeze(
+      tf.matmul(
+          tf.tile(tf.expand_dims(tf.expand_dims(tf_phi, axis=0), axis=0), [BATCH_SIZE, N_CHAINS, 1, 1]),
+          tf.expand_dims(z, axis=-1)),
+      axis=-1)
+  assert (BATCH_SIZE, N_CHAINS, M) == loc.shape
+  x_given_z = tfd.MultivariateNormalDiag(loc=tf.cast(loc, tf.float32), scale_identity_multiplier=SIGMA_N)
+  return x_given_z.log_prob(tf.tile(tf.expand_dims(x_ph, axis=1), [1, N_CHAINS, 1]), name='log_likelihood')
+
+
+#
+# Annealed importance sampling
+print('Constructing AIS computation graph')
+starttime = time.time()
+model = AIS(x_ph=x_ph,
+            qz=z_prior,
+            log_likelihood_fn=lambda x, z: log_likelihood(z),
+            z_dim=L,
+            batch_size=BATCH_SIZE,
+            num_samples=N_CHAINS)
+#
+# Set up an annealing schedule
+schedule = get_schedule(N_ITER, rad=4)
+#
+# Set up the computation graph
+log_normalizer, z_i, step_size, avg_acceptance_rate = model.ais(schedule)
+endtime = time.time()
+print('Constructing graph took {:.1f} seconds'.format(endtime - starttime))
+#
+# Construct and initialise the session
+sess = tf.Session()
+# merged = tf.summary.merge_all()
+# summary_writer = tf.summary.FileWriter('logs')
+sess.run(tf.global_variables_initializer())
+#
+# Run AIS
+print('Running AIS')
+starttime = time.time()
+log_normalizer_ais, z_sampled, final_step_size, final_avg_acceptance_rate = \
+    sess.run([log_normalizer, z_i, step_size, avg_acceptance_rate], {x_ph: x})
+endtime = time.time()
+print('AIS took {:.1f} seconds'.format(endtime - starttime))
+print('Estimated marginal log likelihood(s): {}'.format(log_normalizer_ais))
+print('True      marginal log likelihood(s): {}'.format(lp_true))
+print('Final step size: {}'.format(final_step_size))
+print('Final average acceptance rate: {}'.format(final_avg_acceptance_rate))
+#
+# Plot the output
+print('Plotting marginal log likelihoods')
+fig, (ax, ax_step, ax_accept) = plt.subplots(3, 1, figsize=(8, 12))
+ax.scatter(log_normalizer_ais, lp_true)
+ax.set_xlabel('AIS')
+ax.set_ylabel('true')
+ax.set_title('Marginal log likelihoods')
+xmin, xmax = ax.get_xbound()
+ymin, ymax = ax.get_ybound()
+lower = max(xmin, ymin)
+upper = min(xmax, ymax)
+ax.add_line(lines.Line2D([lower, upper], [lower, upper], linestyle='dashed', color='k', alpha=.3))
+#
+# Acceptance rate
+sns.distplot(final_avg_acceptance_rate.flatten(), ax=ax_accept)
+ax_accept.axvline(x=model.avg_acceptance_rate, linestyle='dashed', color='k', alpha=.3)
+ax_accept.set_title('average acceptance rates (per batch per chain)')
+#
+# Step sizes
+sns.distplot(np.log10(final_step_size.flatten()), ax=ax_step)
+ax_step.set_title('average log_10 step sizes (per batch per chain)')
+fig.savefig('marginal-ll-our-latent.pdf')

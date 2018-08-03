@@ -1,0 +1,10 @@
+#
+# Computation
+#
+scipy
+tensorflow-gpu
+#
+# Plotting
+#
+matplotlib
+seaborn
