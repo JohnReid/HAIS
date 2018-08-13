@@ -18,6 +18,9 @@ import time
 tfd = tf.contrib.distributions
 
 
+#
+# Jupyter magic
+#
 # %load_ext autoreload
 # %autoreload 2
 
@@ -35,7 +38,7 @@ N_CHAINS = 400
 # Model
 BATCH_SIZE = 99
 M = 80  # x dimensions
-L =  5  # z dimensions
+L = 5   # z dimensions
 SIGMA_N = .1
 
 #
@@ -90,7 +93,8 @@ def log_likelihood(z):
       axis=-1)
   assert (BATCH_SIZE, N_CHAINS, M) == loc.shape
   x_given_z = tfd.MultivariateNormalDiag(loc=tf.cast(loc, tf.float32), scale_identity_multiplier=SIGMA_N)
-  return x_given_z.log_prob(tf.tile(tf.expand_dims(x_ph, axis=1), [1, N_CHAINS, 1]), name='log_likelihood')
+  return x_given_z.log_prob(
+      tf.tile(tf.expand_dims(x_ph, axis=1), [1, N_CHAINS, 1]), name='log_likelihood')
 
 
 #
