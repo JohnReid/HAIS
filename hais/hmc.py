@@ -5,116 +5,121 @@ Code to implement Hamiltonian Monte Carlo.
 import tensorflow as tf
 
 
-def kinetic_energy(v):
-  """
-  Calculate the kinetic energy of the system.
-  """
-  return 0.5 * tf.reduce_sum(tf.multiply(v, v), axis=2)
+def tf_expand_rank(input_, rank):
+  "Expand the `input_` tensor to the given rank by appending dimensions"
+  while len(input_.shape) < rank:
+    input_ = tf.expand_dims(input_, axis=-1)
+  return input_
 
 
-def hamiltonian(position, velocity, energy_fn):
+def tf_expand_tile(input_, to_match):
+  "Expand and tile the `input_` tensor to match the `to_match` tensor."
+  assert len(input_.shape) <= len(to_match.shape)
+  input_rank = len(input_.shape)
+  match_rank = len(to_match.shape)
+  tiling = [1] * input_rank + to_match.shape.as_list()[input_rank:]
+  return tf.tile(tf_expand_rank(input_, match_rank), tiling)
+
+
+def kinetic_energy(v, event_axes):
   """
-  Calculate the Hamiltonian of the system.
+  Calculate the kinetic energy of the system. :math:`- \\\log \\Phi(v)` in Sohl-Dickstein and Culpepper's paper.
+  Not normalised by :math:`M \\log(2 \\pi) / 2`
+  """
+  return 0.5 * tf.reduce_sum(tf.square(v), axis=event_axes)
+
+
+def hamiltonian(position, velocity, energy_fn, event_axes):
+  """
+  Calculate the Hamiltonian of the system. Eqn 20 and 21 in Sohl-Dickstein and Culpepper's paper.
   """
   potential = energy_fn(position)
-  momentum = kinetic_energy(velocity)
+  momentum = kinetic_energy(velocity, event_axes)
   return potential + momentum
 
 
-def metropolis_hastings_accept(energy_prev, energy_next):
+def metropolis_hastings_accept(E0, E1):
   """
-  Accept or reject a move based on the energy.
+  Accept or reject a move based on the energies of the two states.
   """
-  ediff = energy_prev - energy_next
-  accept = ediff >= tf.log(tf.random_uniform(tf.shape(energy_prev)))
-  return accept
+  ediff = E0 - E1
+  return ediff >= tf.log(tf.random_uniform(shape=tf.shape(ediff)))
 
 
-def simulate_dynamics(initial_pos, initial_vel, stepsize, n_steps, energy_fn):
+def leapfrog(x0, v0, eps, energy_fn):
   """
-  Simulate the Hamiltonian dynamics using leapfrop method.
+  Simulate the Hamiltonian dynamics using leapfrog method. That is follow the 2nd step in the 5 step
+  procedure in Section 2.3 of Sohl-Dickstein and Culpepper's paper.
   """
-
-  def leapfrog(pos, vel, step, i, dE_dpos):
-    "Make a leapfrog step."
-    energy = energy_fn(pos)
-    dE_dpos = tf.gradients(tf.reduce_sum(energy), pos)[0]
-
-    new_vel = vel - step * dE_dpos
-    new_pos = pos + step * new_vel
-    return new_pos, new_vel, step, tf.add(i, 1), dE_dpos
-
-  def condition(pos, vel, step, i, dE_dpos):
-    "Condition to stop after so many steps."
-    return tf.less(i, n_steps)
-
-  #
-  # Set up variables to enter while loop
-  dE_dpos = tf.cast(tf.gradients(tf.reduce_sum(energy_fn(initial_pos)), initial_pos)[0], tf.float32)
-  # A stepsize variable expanded for each position
-  stepsize_pos = tf.expand_dims(stepsize, axis=-1)
-  vel_half_step = initial_vel - 0.5 * stepsize_pos * dE_dpos
-  pos_full_step = initial_pos + stepsize_pos * vel_half_step
-  #
-  # Run while loop
-  final_pos, new_vel, _, _, _ = tf.while_loop(
-      condition,
-      leapfrog,
-      [pos_full_step, vel_half_step, stepsize_pos, tf.constant(0), dE_dpos])
-  dE_dpos = tf.gradients(tf.reduce_sum(energy_fn(final_pos)), final_pos)[0]
-  final_vel = new_vel - 0.5 * stepsize_pos * dE_dpos
-  return final_pos, final_vel
+  eps = .2
+  epshalf = eps / 2.
+  xhalf = x0 + epshalf * v0
+  dE_dx = tf.gradients(tf.reduce_sum(energy_fn(xhalf)), xhalf)[0]
+  v1 = v0 - eps * dE_dx
+  x1 = xhalf + epshalf * v1
+  return x1, v1
 
 
-def hmc_move(initial_pos, energy_fn, stepsize, n_steps):
+def hmc_move(x0, energy_fn, event_axes, eps):
   """
   Make a HMC move.
   """
   #
-  # Choose an initial velocity randomly
-  initial_vel = tf.random_normal(tf.shape(initial_pos))
+  # Choose an initial velocity randomly.
+  # This does not use Sohl-Dickstein and Culpepper's idea of conserving
+  # momentum across iterations.
+  # TODO: fix this!
+  v0 = tf.random_normal(tf.shape(x0))
   #
-  # Simulate the dynamics of the system
-  final_pos, final_vel = simulate_dynamics(
-      initial_pos=initial_pos,
-      initial_vel=initial_vel,
-      stepsize=stepsize,
-      n_steps=n_steps,
+  # STEP 2:
+  # Simulate the dynamics of the system using leapfrog
+  x1, v1 = leapfrog(
+      x0=x0,
+      v0=v0,
+      eps=eps,
       energy_fn=energy_fn
   )
   #
+  # STEP 3:
   # Accept or reject according to MH
-  energy_prev = hamiltonian(initial_pos, initial_vel, energy_fn)
-  energy_next = hamiltonian(final_pos, final_vel, energy_fn)
-  accept = metropolis_hastings_accept(energy_prev=energy_prev, energy_next=energy_next)
-  # tf.summary.scalar('accept', tf.reduce_mean(tf.cast(accept, tf.float32)))
-  return accept, final_pos, final_vel
+  E0 = hamiltonian(x0, v0, energy_fn, event_axes)
+  E1 = hamiltonian(x1, v1, energy_fn, event_axes)
+  accept = metropolis_hastings_accept(E0=E0, E1=E1)
+  return accept, x1, v1
 
 
-def hmc_updates(initial_pos, stepsize, avg_acceptance_rate, final_pos, accept,
+def hmc_updates(x0, eps, smoothed_acceptance_rate, x1, accept,
                 target_acceptance_rate, stepsize_inc, stepsize_dec,
-                stepsize_min, stepsize_max, avg_acceptance_slowness, batch_size):
+                stepsize_min, stepsize_max, acceptance_decay):
   """
   Do HMC updates, that is
 
     - update the position according to whether the move was accepted or rejected
     - update the step size adaptively according to whether the acceptance rate is high or low
-    - smoothly estimate the acceptance rates (over the iterations)
+    - smooth the acceptance rates (over the iterations)
   """
   #
   # Choose the new position according to whether we accepted or rejected
-  new_pos = tf.where(tf.tile(tf.expand_dims(accept, axis=-1), [1, 1, final_pos.shape[-1]]), final_pos, initial_pos)
+  # First expand the accept (which has batch shape) to full (batch + event) shape.
+  print('accept: {}'.format(accept.shape))
+  print('x0: {}'.format(x0.shape))
+  print('x1: {}'.format(x1.shape))
+  new_x = tf.where(tf_expand_tile(accept, x1), x1, x0)
+  print('new_x: {}'.format(new_x.shape))
   #
   # Increase or decrease step size according to whether we are above or below target (average) acceptance rate
-  new_stepsize_ = tf.where(
-      avg_acceptance_rate > target_acceptance_rate,
+  # print('smoothed_acceptance_rate: {}'.format(smoothed_acceptance_rate.shape))
+  # print('stepsize_inc: {}'.format(stepsize_inc.shape))
+  # print('stepsize_dec: {}'.format(stepsize_dec.shape))
+  new_eps = tf.where(
+      smoothed_acceptance_rate > target_acceptance_rate,
       stepsize_inc,
-      stepsize_dec) * stepsize
+      stepsize_dec) * eps
   #
   # Make sure we stay within specified step size range
-  new_stepsize = tf.clip_by_value(new_stepsize_, clip_value_min=stepsize_min, clip_value_max=stepsize_max)
+  new_eps = tf.clip_by_value(new_eps, clip_value_min=stepsize_min, clip_value_max=stepsize_max)
   #
-  # Update the acceptance rate?
-  new_acceptance_rate = tf.add(avg_acceptance_slowness * avg_acceptance_rate,
-                               (1.0 - avg_acceptance_slowness) * tf.to_float(accept))
-  return new_pos, new_stepsize, new_acceptance_rate
+  # Smooth the acceptance rate
+  new_acceptance_rate = tf.add(acceptance_decay * smoothed_acceptance_rate,
+                               (1.0 - acceptance_decay) * tf.to_float(accept))
+  return new_x, new_eps, new_acceptance_rate
