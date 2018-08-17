@@ -22,7 +22,7 @@ import seaborn as sns
 
 SEED = 37
 NCHAINS = 2000
-NITER = 100
+NITER = 1000
 # normal parameters
 MU = 1.
 SIGMA = .5
@@ -30,17 +30,19 @@ SIGMA = .5
 # HMC parameters
 TARGET_ACCEPTANCE_RATE = .65
 ACCEPTANCE_DECAY = .9
-STEPSIZE_INITIAL = .01
-STEPSIZE_MIN = 1e-8
-STEPSIZE_MAX = 500
-STEPSIZE_DEC = .99
-STEPSIZE_INC = 1.01
+STEPSIZE = .5
+# STEPSIZE_INITIAL = .01
+# STEPSIZE_MIN = 1e-8
+# STEPSIZE_MAX = 500
+# STEPSIZE_DEC = .99
+# STEPSIZE_INC = 1.01
 
 
 #
 # Seed RNGs
 tf.set_random_seed(SEED)
 np.random.seed(SEED)
+
 
 def unnormalized_normal_lpdf(x):
   """
@@ -51,47 +53,37 @@ def unnormalized_normal_lpdf(x):
   return - tf.square((x - MU) / SIGMA) / 2.
 
 
-def condition(i, x, samples, stepsize, smoothed_acceptance_rate):
+def condition(i, x, v, samples, smoothed_accept_rate):
   "The condition keeps the while loop going until we have finished the iterations."
   return tf.less(i, NITER)
 
 
-def body(i, x, samples, stepsize, smoothed_acceptance_rate):
+def body(i, x, v, samples, smoothed_accept_rate):
   "The body of the while loop over the iterations."
   #
   # New step: make a HMC move
-  # print('stepsize: {}'.format(stepsize.shape))
-  # print('z: {}'.format(z.shape))
-  accept, x1, v1 = hmc.hmc_move(
+  accept, xnew, vnew = hmc.hmc_move(
       x,
-      lambda x: - unnormalized_normal_lpdf(x),
+      v,
+      energy_fn=lambda x: - unnormalized_normal_lpdf(x),
       event_axes=(),
-      eps=stepsize,
+      eps=STEPSIZE,
   )
   #
-  # Make updates to state
-  new_x, new_stepsize, new_acceptance_rate = hmc.hmc_updates(
-      x,
-      stepsize,
-      smoothed_acceptance_rate=smoothed_acceptance_rate,
-      x1=x1,
-      accept=accept,
-      stepsize_min=STEPSIZE_MIN,
-      stepsize_max=STEPSIZE_MAX,
-      stepsize_dec=stepsize_dec,
-      stepsize_inc=stepsize_inc,
-      target_acceptance_rate=TARGET_ACCEPTANCE_RATE,
-      acceptance_decay=ACCEPTANCE_DECAY,
-  )
-  samples = samples.write(i, new_x)
-  return tf.add(i, 1), new_x, samples, new_stepsize, new_acceptance_rate
+  # Update the TensorArray storing the samples
+  samples = samples.write(i, xnew)
+  #
+  # Smooth the acceptance rate
+  smoothed_accept_rate = hmc.smooth_acceptance_rate(accept, smoothed_accept_rate, ACCEPTANCE_DECAY)
+  #
+  return tf.add(i, 1), xnew, vnew, samples, smoothed_accept_rate
 
 
 #
-# Sample initial x
+# Sample initial x and momentum, v
 prior = tf.distributions.Normal(loc=tf.zeros(NCHAINS), scale=tf.ones(NCHAINS))
-init_x = prior.sample()
-init_x.shape
+x0 = prior.sample()
+v0 = tf.random_normal(tf.shape(x0))
 #
 # Our samples
 samples = tf.TensorArray(dtype=tf.float32, size=NITER, element_shape=(NCHAINS,))
@@ -99,22 +91,20 @@ samples = tf.TensorArray(dtype=tf.float32, size=NITER, element_shape=(NCHAINS,))
 # Current iteration
 iteration = tf.constant(0)
 #
-# Current step size
-stepsize = tf.constant(STEPSIZE_INITIAL, shape=(NCHAINS,), dtype=tf.float32)
-#
 # Smoothed acceptance rate
-smoothed_acceptance_rate = tf.constant(TARGET_ACCEPTANCE_RATE, shape=(NCHAINS,), dtype=tf.float32)
+smoothed_accept_rate = tf.constant(TARGET_ACCEPTANCE_RATE, shape=(NCHAINS,), dtype=tf.float32)
 #
-# Stepsize adjustments
-stepsize_dec = STEPSIZE_DEC * tf.ones(smoothed_acceptance_rate.shape)
-stepsize_inc = STEPSIZE_INC * tf.ones(smoothed_acceptance_rate.shape)
+# Current step size and adjustments
+# stepsize = tf.constant(STEPSIZE_INITIAL, shape=(NCHAINS,), dtype=tf.float32)
+# stepsize_dec = STEPSIZE_DEC * tf.ones(smoothed_acceptance_rate.shape)
+# stepsize_inc = STEPSIZE_INC * tf.ones(smoothed_acceptance_rate.shape)
 #
 # While loop across iterations
-n, x, samples_final, stepsize, smoothed_acceptance_rate = \
+n, x, v, samples_final, smoothed_accept_rate_final = \
     tf.while_loop(
         condition,
         body,
-        (iteration, init_x, samples, stepsize, smoothed_acceptance_rate),
+        (iteration, x0, v0, samples, smoothed_accept_rate),
         parallel_iterations=1,
         swap_memory=True)
 #
@@ -125,17 +115,16 @@ sess.run(tf.global_variables_initializer())
 # Run sampler
 print('Running sampler')
 starttime = time.time()
-samples_hmc, stepsize_hmc, smoothed_acceptance_rate_hmc = \
-    sess.run((samples_final.stack(), stepsize, smoothed_acceptance_rate))
-sess.run(samples_final.size())
-sess.run(n)
+samples_hmc, accept_hmc = sess.run((samples_final.stack(), smoothed_accept_rate_final))
 endtime = time.time()
 print('Sampler took {:.1f} seconds'.format(endtime - starttime))
 samples_hmc.shape
 burned_in = samples_hmc[int(NITER/2):]
 burned_in.shape
+print('Mean of (burned in) samples: {:.3f}'.format(np.mean(burned_in)))
+print('Desired mean               : {:.3f}'.format(MU))
 print('Standard deviation of (burned in) samples: {:.3f}'.format(np.std(burned_in)))
-print('Desired standard deviation: {:.3f}'.format(SIGMA))
+print('Desired standard deviation               : {:.3f}'.format(SIGMA))
 
 #
 # Investigate samples
@@ -147,12 +136,12 @@ ax.set_title('Samples')
 xmin, xmax = ax.get_xbound()
 xpdf = np.linspace(xmin, xmax, num=500)
 ax.plot(xpdf, st.norm.pdf(xpdf, loc=MU, scale=SIGMA), linestyle='dotted', lw=1, color='orange')
-if NCHAINS > 1:
-  #
-  # Acceptance rate
-  sns.distplot(smoothed_acceptance_rate_hmc.flatten(), ax=ax_accept)
-  ax_accept.axvline(x=TARGET_ACCEPTANCE_RATE, linestyle='dashed', color='k', alpha=.3)
-  ax_accept.set_title('Smoothed acceptance rates')
+#
+# Acceptance rate
+sns.distplot(accept_hmc.flatten(), ax=ax_accept)
+ax_accept.axvline(x=TARGET_ACCEPTANCE_RATE, linestyle='dashed', color='k', alpha=.3)
+ax_accept.set_title('Smoothed acceptance rates')
+if False:
   #
   # Step sizes
   sns.distplot(np.log10(stepsize_hmc.flatten()), ax=ax_step)
