@@ -4,6 +4,8 @@ A TensorFlow implementation of Hamiltonian Annealed Importance Sampling (HAIS).
 We implement the [method](http://arxiv.org/abs/1205.1925) described by Sohl-Dickstein and Culpepper
 in their paper "Hamiltonian Annealed Importance Sampling for partition function estimation".
 
+Should be considered beta software for now.
+
 
 ### Related implementations
 
@@ -17,6 +19,20 @@ We have used ideas and built upon the code from the following repositories:
   - Tony Wu's Theano/Lasagne [implementation](https://github.com/tonywu95/eval_gen) of the methods described in
     ["On the Quantitative Analysis of Decoder-Based Generative Models"](https://arxiv.org/abs/1611.04273)
   - jiamings's (unfinished?) TensorFlow [implementation](https://github.com/jiamings/ais/) based on Tony Wu's Theano code.
+
+
+### Tests
+
+The tests that are working include:
+
+  - `test-hmc`: a simple test of the HMC implementation
+  - `test-hais-log-gamma`: a simple test to sample from and calculate the log normaliser of
+    an unnormalised log-Gamma distribution.
+
+Planned tests that are not working include:
+
+  - Versions of the working tests for higher dimensionsal distributions.
+  - Tests to calculate marginal likelihoods for latent variable models.
 
 
 ### Installation
