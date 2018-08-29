@@ -9,7 +9,8 @@ We name the latent variable 'z' in place of 'a'
 
 import tensorflow as tf
 import numpy as np
-from hais.ais import AIS, get_schedule
+import hais
+from hais import HAIS, get_schedule
 import matplotlib.pyplot as plt
 from matplotlib import lines
 import seaborn as sns
@@ -21,8 +22,8 @@ tfd = tf.contrib.distributions
 #
 # Jupyter magic
 #
-# %load_ext autoreload
-# %autoreload 2
+%load_ext autoreload
+%autoreload 2
 
 
 #
@@ -101,15 +102,13 @@ def log_likelihood(z):
 # Annealed importance sampling
 print('Constructing AIS computation graph')
 starttime = time.time()
-model = AIS(x_ph=x_ph,
-            qz=z_prior,
-            log_likelihood_fn=lambda x, z: log_likelihood(z),
-            z_dim=L,
-            batch_size=BATCH_SIZE,
-            num_samples=N_CHAINS)
+model = HAIS(qz=z_prior,
+             log_likelihood_fn=log_likelihood,
+             batch_size=BATCH_SIZE,
+             num_samples=N_CHAINS)
 #
 # Set up an annealing schedule
-schedule = get_schedule(N_ITER, rad=4)
+schedule = hais.get_schedule(N_ITER, rad=4)
 #
 # Set up the computation graph
 log_normalizer, z_i, step_size, avg_acceptance_rate = model.ais(schedule)
