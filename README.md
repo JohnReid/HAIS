@@ -23,13 +23,13 @@ We have used ideas and built upon the code from the following repositories:
 
 ### Tests
 
-The tests that are working include:
+The tests that appear to be working include:
 
   - `test-hmc`: a simple test of the HMC implementation
   - `test-hais-log-gamma`: a simple test to sample from and calculate the log normaliser of
     an unnormalised log-Gamma distribution.
 
-Planned tests that are not working include:
+Planned tests that are not implemented or working yet include:
 
   - Versions of the working tests for higher dimensionsal distributions.
   - Tests to calculate marginal likelihoods for latent variable models.
