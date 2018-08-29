@@ -1,0 +1,168 @@
+#!/usr/bin/env python
+"""
+Estimate the normalizing constant of a log-gamma distribution using
+our HAIS implementation.
+
+The probability density function for a gamma distribution is:
+
+.. math::
+
+    f(x; alpha, beta) =
+      \\frac{\\beta^\\alpha}{\Gamma(\\alpha)}
+      x^{\\alpha-1}
+      e^{- \\beta x}
+
+for all :math:`x > 0` and any given shape :math:`\\alpha > 0` and rate :math:`\\rate > 0`. Given a change
+of variables :math:`y = \\log(x)` we have the density for a log-gamma distribution:
+
+.. math::
+
+    f(y; alpha, beta) =
+      \\frac{\\beta^\\alpha}{\Gamma(\\alpha)}
+      e^{\\alpha y - \\beta e^y}
+
+"""
+
+
+#
+# Jupyter magic
+#
+%load_ext autoreload
+%autoreload 2
+
+
+import time
+#
+# Scientific
+import numpy as np
+import scipy.special as sp
+import scipy.stats as st
+from hais import ais
+#
+# Tensorflow
+import tensorflow as tf
+import tensorflow.contrib.bayesflow as bf
+#
+# Plotting
+import matplotlib.pyplot as plt
+from matplotlib import lines
+import seaborn as sns
+
+
+#
+# Constants
+#
+# normal parameters
+MU = 1.
+SIGMA = .5
+#
+# log-gamma parameters
+ALPHA = 2.
+BETA = 3.
+#
+# RNG seed
+SEED = 41
+#
+# HMC AIS
+N_ITER = 3000
+N_CHAINS = 30000
+STEPSIZE = .7
+
+
+#
+# Seed RNGs
+print('Seeding RNGs')
+np.random.seed(SEED)
+tf.set_random_seed(SEED)
+
+
+def unnormalized_log_gamma_lpdf(x):
+  """
+  Unnormalized log probability density function of the log-gamma(ALPHA, BETA) distribution.
+  True log normalizer is:
+
+  .. math::
+
+    \\log \\Gamma(\\alpha) - \\alpha \\log \\beta
+
+  """
+  # assert x.shape == (N_CHAINS,)
+  return ALPHA * x - BETA * tf.exp(x)
+
+#
+# Calculate the true log normalizer
+log_target, log_normalizer_true = \
+  unnormalized_log_gamma_lpdf, sp.gammaln(ALPHA) - ALPHA * np.log(BETA)
+
+
+def unnormalized_normal_lpdf(x):
+  """
+  Unnormalized log probability density function of the normal(MU, SIGMA) distribution.
+  """
+  # assert x.shape == (N_CHAINS,)
+  return - tf.square((x - MU) / SIGMA) / 2.
+
+
+# log_target, log_normalizer_true = \
+#     unnormalized_normal_lpdf, .5 * (np.log(2.) + np.log(np.pi)) + np.log(SIGMA)
+
+
+#
+# Annealed importance sampling
+print('Constructing AIS computation graph')
+starttime = time.time()
+prior = tf.distributions.Normal(loc=tf.zeros(N_CHAINS), scale=tf.ones(N_CHAINS))
+# model = ais.HAIS(qz=prior, log_likelihood_fn=unnormalized_log_gamma_lpdf)
+model = ais.HAIS(prior=prior, log_target=log_target, stepsize=STEPSIZE)
+#
+# Set up an annealing schedule
+schedule = ais.get_schedule(N_ITER+1, rad=4, for_calculating_marginal=False)
+# ais.temperature_pairs(ais.get_schedule(4, rad=4, for_calculating_marginal=False))
+schedule
+#
+# Set up the computation graph
+logw, z_i, avg_acceptance_rate = model.ais(schedule)
+log_normalizer = model.log_normalizer(logw, samples_axis=0)
+endtime = time.time()
+print('Constructing graph took {:.1f} seconds'.format(endtime - starttime))
+#
+# Construct and initialise the session
+sess = tf.Session()
+sess.run(tf.global_variables_initializer())
+#
+# Run AIS
+print('Running AIS')
+starttime = time.time()
+log_normalizer_ais, log_w_ais, z_sampled, final_avg_acceptance_rate = \
+    sess.run([log_normalizer, logw, z_i, avg_acceptance_rate])
+endtime = time.time()
+print('AIS took {:.1f} seconds'.format(endtime - starttime))
+# print('Final step size: {}'.format(final_step_size))
+# print('Final average acceptance rate: {}'.format(final_avg_acceptance_rate))
+print('Estimated log normalizer: {}'.format(log_normalizer_ais))
+print('True      log normalizer: {}'.format(log_normalizer_true))
+
+
+
+
+#
+# Plot the output
+print('Plotting log normalizer')
+fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
+# ax.scatter(log_normalizer_ais, log_normalizer_true)
+ax.set_xlabel('x')
+ax.set_ylabel('target')
+ax.set_title('Samples')
+z_sampled.shape
+sns.distplot(z_sampled, ax=ax)
+xmin, xmax = ax.get_xbound()
+target_range = np.linspace(xmin, xmax, num=300)
+target_range.shape
+target = sess.run(tf.exp(log_target(target_range) - log_normalizer_true))
+ax.plot(target_range, target)
+#
+# Acceptance rate
+sns.distplot(final_avg_acceptance_rate.flatten(), ax=ax_accept)
+ax_accept.axvline(x=model.target_acceptance_rate, linestyle='dashed', color='k', alpha=.3)
+ax_accept.set_title('average acceptance rates (per batch per chain)')
+fig.savefig('hais-log-gamma.pdf')

@@ -59,9 +59,13 @@ def leapfrog(x0, v0, eps, energy_fn):
   return x1, -v1
 
 
-def hmc_move(x0, v0, energy_fn, event_axes, eps):
+def hmc_move(x0, v0, energy_fn, event_axes, eps, gamma=None):
   """
   Make a HMC move.
+
+  Parameters:
+
+    - gamma: Set to 1 to remove any partial momentum refresh (momentum is sampled fresh every move)
   """
   #
   # STEP 2:
@@ -90,7 +94,8 @@ def hmc_move(x0, v0, energy_fn, event_axes, eps):
   # STEP 4:
   # Partial momentum refresh.
   # See Eqn 11. of Culpepper et al. 2011 "Building a better probabilistic model of images by factorization"
-  gamma = 1 - tf.exp(eps * tf.log(1/2.))
+  if gamma is None:
+    gamma = 1 - tf.exp(eps * tf.log(1/2.))
   # There is some disagreement between the above paper and the description of STEP 4.
   # Specifically the second sqrt below is omitted in the description of STEP 4.
   # Note also that we removed the leading minus '-' from the vtilde equation
