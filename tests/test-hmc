@@ -21,8 +21,8 @@ import seaborn as sns
 
 
 SEED = 37
-NCHAINS = 2000
-NITER = 1000
+NCHAINS = 20000
+NITER = 10000
 # normal parameters
 MU = 1.
 SIGMA = .5
@@ -121,23 +121,32 @@ print('Sampler took {:.1f} seconds'.format(endtime - starttime))
 samples_hmc.shape
 burned_in = samples_hmc[int(NITER/2):]
 burned_in.shape
+burned_in.size / 1e6
 print('Mean of (burned in) samples: {:.3f}'.format(np.mean(burned_in)))
 print('Desired mean               : {:.3f}'.format(MU))
 print('Standard deviation of (burned in) samples: {:.3f}'.format(np.std(burned_in)))
 print('Desired standard deviation               : {:.3f}'.format(SIGMA))
+#
+# Drop samples so we don't have too many per chain
+MAX_SAMPLES_PER_CHAIN = 47
+if burned_in.shape[0] > MAX_SAMPLES_PER_CHAIN:
+  burned_in = burned_in[::(int(burned_in.shape[0]/MAX_SAMPLES_PER_CHAIN)+1)]
+burned_in.shape
 
 #
-# Investigate samples
+# Plot samples
 print('Plotting samples')
 fig, (ax, ax_step, ax_accept) = plt.subplots(3, 1, figsize=(8, 12))
 sns.distplot(burned_in.flatten(), ax=ax)
 ax.set_xlabel('x')
 ax.set_title('Samples')
+# Plot the pdf
 xmin, xmax = ax.get_xbound()
 xpdf = np.linspace(xmin, xmax, num=500)
 ax.plot(xpdf, st.norm.pdf(xpdf, loc=MU, scale=SIGMA), linestyle='dotted', lw=1, color='orange')
 #
 # Acceptance rate
+print('Plotting acceptance rate')
 sns.distplot(accept_hmc.flatten(), ax=ax_accept)
 ax_accept.axvline(x=TARGET_ACCEPTANCE_RATE, linestyle='dashed', color='k', alpha=.3)
 ax_accept.set_title('Smoothed acceptance rates')
