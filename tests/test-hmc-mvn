@@ -1,0 +1,189 @@
+#!/usr/bin/env python
+"""
+Test our Hamiltonian Monte Carlo sampler by sampling from a multivariate normal.
+"""
+
+
+import time
+import itertools
+import hais.hmc as hmc
+import numpy as np
+import scipy.stats as st
+import scipy.linalg as la
+import tensorflow as tf
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+#
+# Jupyter magic
+#
+# %load_ext autoreload
+# %autoreload 2
+
+
+SEED = 37
+NCHAINS = 2000
+NITER = 1000
+# normal parameters
+L = 2  # dimensions
+NU = L + 1.  # degrees of freedom for inverse-Wishart
+PSI = np.diag(np.ones(L))  # scale for inverse-Wishart
+MU0 = np.zeros(L)
+M = 1.  # Prior pseudocount
+#
+# HMC parameters
+TARGET_ACCEPTANCE_RATE = .65
+ACCEPTANCE_DECAY = .9
+STEPSIZE = .5
+# STEPSIZE_INITIAL = .01
+# STEPSIZE_MIN = 1e-8
+# STEPSIZE_MAX = 500
+# STEPSIZE_DEC = .99
+# STEPSIZE_INC = 1.01
+
+
+#
+# Seed RNGs
+tf.set_random_seed(SEED)
+np.random.seed(SEED)
+
+
+def unnormalized_log_target(x):
+  """
+  Unnormalized log probability density function of the multivariate normal(mu, Sigma) distribution.
+  """
+  # print(x.shape)
+  assert x.shape == (NCHAINS, L)
+  sqrt = tf.einsum('ij,kj->ki', tf.cast(Cinv, dtype=tf.float32), (x - tf.cast(mu, dtype=tf.float32)))
+  # print('sqrt: {}'.format(sqrt.shape))
+  # sqrt = tf.multiply(tf.cast(Cinv, dtype=tf.float32), (x - tf.cast(mu, dtype=tf.float32)))
+  lp = - tf.reduce_sum(tf.square(sqrt), axis=-1) / 2.
+  # print('lp: {}'.format(lp.shape))
+  return lp
+
+
+def condition(i, x, v, samples, smoothed_accept_rate):
+  "The condition keeps the while loop going until we have finished the iterations."
+  return tf.less(i, NITER)
+
+
+def body(i, x, v, samples, smoothed_accept_rate):
+  "The body of the while loop over the iterations."
+  #
+  # New step: make a HMC move
+  accept, xnew, vnew = hmc.hmc_move(
+      x,
+      v,
+      energy_fn=lambda x: - unnormalized_log_target(x),
+      event_axes=(1),
+      eps=STEPSIZE,
+  )
+  #
+  # Update the TensorArray storing the samples
+  samples = samples.write(i, xnew)
+  #
+  # Smooth the acceptance rate
+  smoothed_accept_rate = hmc.smooth_acceptance_rate(accept, smoothed_accept_rate, ACCEPTANCE_DECAY)
+  #
+  # print('xnew: {}'.format(xnew.shape))
+  # print('vnew: {}'.format(vnew.shape))
+  return tf.add(i, 1), xnew, vnew, samples, smoothed_accept_rate
+
+
+
+#
+# Model
+#
+# Use Bayesian conjugate priors for mean and covariance.
+#
+Sigma = st.invwishart.rvs(df = NU, scale = PSI)
+print('MVN covariance: {}'.format(Sigma))
+mu = st.multivariate_normal.rvs(mean=MU0, cov=Sigma / M)
+print('MVN mean: {}'.format(mu))
+#
+# Calculate Cholesky decomposition and inverse
+C = la.cholesky(Sigma, lower=True)
+Cinv = la.solve_triangular(C, np.diag(np.ones(L)), lower=True)
+# Sigma - C @ C.T
+# la.inv(Sigma) - Cinv.T @ Cinv
+
+
+#
+# Sample initial x and momentum, v
+tfd = tf.contrib.distributions
+prior = tfd.MultivariateNormalDiag(loc=tf.zeros((NCHAINS, L)))
+x0 = prior.sample()
+v0 = tf.random_normal(tf.shape(x0))
+#
+# Our samples
+samples = tf.TensorArray(dtype=tf.float32, size=NITER, element_shape=(NCHAINS, L))
+#
+# Current iteration
+iteration = tf.constant(0)
+#
+# Smoothed acceptance rate
+smoothed_accept_rate = tf.constant(TARGET_ACCEPTANCE_RATE, shape=(NCHAINS,), dtype=tf.float32)
+#
+# Current step size and adjustments
+# stepsize = tf.constant(STEPSIZE_INITIAL, shape=(NCHAINS,), dtype=tf.float32)
+# stepsize_dec = STEPSIZE_DEC * tf.ones(smoothed_acceptance_rate.shape)
+# stepsize_inc = STEPSIZE_INC * tf.ones(smoothed_acceptance_rate.shape)
+#
+# While loop across iterations
+n, x, v, samples_final, smoothed_accept_rate_final = \
+    tf.while_loop(
+        condition,
+        body,
+        (iteration, x0, v0, samples, smoothed_accept_rate),
+        parallel_iterations=1,
+        swap_memory=True)
+#
+# Construct and initialise the session
+sess = tf.Session()
+sess.run(tf.global_variables_initializer())
+#
+# Run sampler
+print('Running sampler')
+starttime = time.time()
+samples_hmc, accept_hmc = sess.run((samples_final.stack(), smoothed_accept_rate_final))
+endtime = time.time()
+print('Sampler took {:.1f} seconds'.format(endtime - starttime))
+samples_hmc.shape
+burned_in = samples_hmc[int(NITER / 2):]
+burned_in.shape
+burned_in.size / 1e6
+for d in range(L):
+  print('Mean of (burned in) samples (dim {}): {:.3f}'.format(d, np.mean(burned_in[:, :, d])))
+  print('Desired mean                (dim {}): {:.3f}'.format(d, mu[d]))
+  print('Standard deviation of (burned in) samples (dim {}): {:.3f}'.format(d, np.std(burned_in[:, :, d])))
+  print('Desired standard deviation                (dim {}): {:.3f}'.format(d, np.sqrt(Sigma[d, d])))
+for (d0, d1) in itertools.combinations(range(L), 2):
+  print('Dimensions: {}, {}'.format(d0, d1))
+  rho = np.corrcoef(burned_in[:, :, d0].flatten(), burned_in[:, :, d1].flatten())[0, 1]
+  print('Sample correlation  : {:.3f}'.format(rho))
+  print('Expected correlation: {:.3f}'.format(Sigma[d0, d1] / np.sqrt(Sigma[d0, d0] * Sigma[d1, d1])))
+#
+# Drop samples so we don't have too many per chain
+MAX_SAMPLES_PER_CHAIN = 47
+if burned_in.shape[0] > MAX_SAMPLES_PER_CHAIN:
+  burned_in = burned_in[::(int(burned_in.shape[0] / MAX_SAMPLES_PER_CHAIN) + 1)]
+burned_in.shape
+
+#
+# Plot samples
+print('Plotting samples')
+plt.contour
+d0, d1 = 0, 1
+fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
+ax.scatter(burned_in[:, :, d0], burned_in[:, :, d1], alpha=.01)
+ax.set_xlabel('dim {}'.format(d0))
+ax.set_ylabel('dim {}'.format(d1))
+ax.set_title('Samples')
+#
+# Acceptance rate
+print('Plotting acceptance rate')
+sns.distplot(accept_hmc.flatten(), ax=ax_accept)
+ax_accept.axvline(x=TARGET_ACCEPTANCE_RATE, linestyle='dashed', color='k', alpha=.3)
+ax_accept.set_title('Smoothed acceptance rates')
+fig.savefig('hmc-mvn-samples.pdf')

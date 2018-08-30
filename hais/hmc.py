@@ -23,7 +23,7 @@ def tf_expand_tile(input_, to_match):
 
 def kinetic_energy(v, event_axes):
   """
-  Calculate the kinetic energy of the system. :math:`- \\\log \\Phi(v)` in Sohl-Dickstein and Culpepper's paper.
+  Calculate the kinetic energy of the system. :math:`- \\log \\Phi(v)` in Sohl-Dickstein and Culpepper's paper.
   Not normalised by :math:`M \\log(2 \\pi) / 2`
   """
   return 0.5 * tf.reduce_sum(tf.square(v), axis=event_axes)
