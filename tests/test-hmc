@@ -4,13 +4,6 @@ Test our Hamiltonian Monte Carlo sampler.
 """
 
 
-#
-# Jupyter magic
-#
-%load_ext autoreload
-%autoreload 2
-
-
 import time
 import hais.hmc as hmc
 import numpy as np
@@ -18,6 +11,13 @@ import scipy.stats as st
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+
+#
+# Jupyter magic
+#
+# %load_ext autoreload
+# %autoreload 2
 
 
 SEED = 37
@@ -119,7 +119,7 @@ samples_hmc, accept_hmc = sess.run((samples_final.stack(), smoothed_accept_rate_
 endtime = time.time()
 print('Sampler took {:.1f} seconds'.format(endtime - starttime))
 samples_hmc.shape
-burned_in = samples_hmc[int(NITER/2):]
+burned_in = samples_hmc[int(NITER / 2):]
 burned_in.shape
 burned_in.size / 1e6
 print('Mean of (burned in) samples: {:.3f}'.format(np.mean(burned_in)))
@@ -130,13 +130,13 @@ print('Desired standard deviation               : {:.3f}'.format(SIGMA))
 # Drop samples so we don't have too many per chain
 MAX_SAMPLES_PER_CHAIN = 47
 if burned_in.shape[0] > MAX_SAMPLES_PER_CHAIN:
-  burned_in = burned_in[::(int(burned_in.shape[0]/MAX_SAMPLES_PER_CHAIN)+1)]
+  burned_in = burned_in[::(int(burned_in.shape[0] / MAX_SAMPLES_PER_CHAIN) + 1)]
 burned_in.shape
 
 #
 # Plot samples
 print('Plotting samples')
-fig, (ax, ax_step, ax_accept) = plt.subplots(3, 1, figsize=(8, 12))
+fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
 sns.distplot(burned_in.flatten(), ax=ax)
 ax.set_xlabel('x')
 ax.set_title('Samples')
@@ -150,10 +150,4 @@ print('Plotting acceptance rate')
 sns.distplot(accept_hmc.flatten(), ax=ax_accept)
 ax_accept.axvline(x=TARGET_ACCEPTANCE_RATE, linestyle='dashed', color='k', alpha=.3)
 ax_accept.set_title('Smoothed acceptance rates')
-if False:
-  #
-  # Step sizes
-  sns.distplot(np.log10(stepsize_hmc.flatten()), ax=ax_step)
-  ax_step.set_title('log10 step sizes')
 fig.savefig('hmc-samples.pdf')
-
