@@ -1,0 +1,76 @@
+\documentclass{article}
+\usepackage{amsmath, amssymb, bm}
+
+\newcommand{\ba}{\bm{a}}
+\newcommand{\bx}{\bm{x}}
+\newcommand{\by}{\bm{y}}
+\newcommand{\bb}{\bm{b}}
+\newcommand{\fs}{\frac{1}{\sigma_n^2}}
+
+\begin{document}
+
+Derivation of exact marginal likelihood.
+
+
+\section{Model 1a: linear generative (Gaussian prior)}
+
+
+$L$ is the dimension of $\ba$; $M$ is the dimension of $\bx$; $\Phi$ is a fixed $M \times L$ matrix.
+\begin{eqnarray}
+  p(\ba) &=& \mathcal{N}(0, I_L) \\
+  p(\bx|\ba) &=& \mathcal{N}(\Phi \ba, \sigma_n^2 I_M)
+\end{eqnarray}
+
+\subsection{Complicated derivation}
+
+\emph{See Section~\ref{sec:alt1a} for a simpler derivation!}
+
+Defining $\Sigma = (I_L + \fs \Phi^T\Phi)^{-1}$ (the posterior covariance of $\ba$) and working with
+logarithms our joint density is
+\begin{eqnarray}
+  \log p(\bx, \ba)
+    &=& \log p(\ba) + \log p(\bx|\ba) \\
+    &=& - \log Z_{\ba}
+        - \log Z_{\bx |\ba}
+        - \frac{1}{2}\big[\ba^T\ba + \fs(\bx-\Phi\ba)^T(x-\Phi\ba)\big] \\
+    &=& - \log Z_{\ba}
+        - \log Z_{\bx |\ba}
+        - \frac{1}{2}\big[\ba^T \Sigma^{-1} \ba - \frac{2}{\sigma_n^2}\bx^T\Phi\ba + \fs \bx^T \bx \big] \\
+    &=& - \log Z_{\ba}
+        - \log Z_{\bx |\ba} \nonumber \\
+    &&  - \frac{1}{2}\big[(\ba - \fs \Sigma \Phi^T \bx)^T \Sigma^{-1} (\ba - \fs \Sigma \Phi^T \bx) \nonumber \\
+    && \qquad             - \frac{1}{\sigma_n^4}\bx^T\Phi\Sigma\Phi^T\bx + \fs \bx^T \bx \big]
+\end{eqnarray}
+where $Z_{\ba}$ and $Z_{\bx |\ba}$ are the normalising constants for $p(\ba)$ and $p(\bx|\ba)$ respectively:
+\begin{eqnarray}
+  Z_{\ba} &=& (2 \pi)^{\frac{L}{2}} \\
+  Z_{\bx |\ba} &=& (2 \pi)^{\frac{M}{2}} \sigma_n^M
+\end{eqnarray}
+Now to calculate the marginal likelihood we just need to marginalise over (integrate out) $\ba$
+\begin{eqnarray}
+  \log p(x)
+    &=& - \log Z_{\ba}
+        - \log Z_{\bx |\ba}
+        + \log Z_{\ba |\bx} \nonumber \\
+    && \qquad
+        + \frac{1}{2 \sigma_n^2}\big[\fs\bx^T\Phi\Sigma\Phi^T\bx - \bx^T \bx \big]
+\end{eqnarray}
+where $Z_{\ba |\bx}$ is the normalising constant for the posterior of $\ba$
+\begin{eqnarray}
+  Z_{\ba |\bx} &=& |2 \pi \Sigma|^\frac{1}{2}
+\end{eqnarray}
+
+
+\subsection{Alternative derivation}
+\label{sec:alt1a}
+
+Note that if $\bb = \Phi \ba$ then $\bb \sim \mathcal{N}(0, \Phi \Phi^T)$. Now given $\by \sim \mathcal{N}(0, \sigma_n^2 I_M)$
+then $\bx$ and $\bb + \by$ have the same distribution. But $\mathbb{E}[\bb + \by] = 0$ and
+$\mathbb{V}[\bb + \by] = \mathbb{V}[\bb] + \mathbb{V}[\by] = \Phi \Phi^T + \sigma_n^2 I_M$. Also note
+$\bb + \by$ has a a Gaussian distribution. Hence
+\begin{eqnarray}
+  p(x) = \mathcal{N}(0, \Phi \Phi^T + \sigma_n^2 I_M)
+\end{eqnarray}
+
+
+\end{document}
