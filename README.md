@@ -26,13 +26,11 @@ We have used ideas and built upon the code from the following repositories:
 The tests that appear to be working include:
 
   - `test-hmc`: a simple test of the HMC implementation
+  - `test-hmc-mvn`: a test of the HMC implementation that samples from a multivariate normal
   - `test-hais-log-gamma`: a simple test to sample from and calculate the log normaliser of
     an unnormalised log-Gamma density.
-
-Planned tests that are not implemented or working yet include:
-
-  - Versions of the working tests for higher dimensionsal distributions.
-  - Tests to calculate marginal likelihoods for latent variable models.
+  - `test-hais-latent`: a test that estimates the log marginal likelihood for model 1a with
+    a Gaussian prior from Culpepper and Sohl-Dickstein's paper.
 
 
 ### Installation
