@@ -13,7 +13,7 @@ When L is around 5 (the latent dimensionality), there is still some considerable
 
 import tensorflow as tf
 import numpy as np
-from hais import ais
+from hais import ais, exact
 import matplotlib.pyplot as plt
 from matplotlib import lines
 import seaborn as sns
@@ -36,14 +36,14 @@ tfd = tf.contrib.distributions
 SEED = 41
 #
 # HMC AIS
-N_ITER = 1000
+N_ITER = 3000
 N_CHAINS = 400
-STEPSIZE = .005
+STEPSIZE = .01
 #
 # Model
 BATCH_SIZE = 99
-M = 80  # x dimensions
-L = 2   # z dimensions
+M = 36  # x dimensions
+L = 3   # z dimensions
 SIGMA_N = .1
 
 #
@@ -73,9 +73,9 @@ x.shape
 
 #
 # True marginal likelihood
-true_Sigma = phi@phi.T + np.diag(SIGMA_N**2 * np.ones(M))
-lp_true = st.multivariate_normal.logpdf(x, cov=true_Sigma)
-print('Calculated true marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(np.mean(lp_true), np.std(lp_true)))
+lp_exact = exact.culpepper1a_log_marginal(x, phi, SIGMA_N)
+print('Calculated exact marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
+    np.mean(lp_exact), np.std(lp_exact)))
 
 #
 # Model
@@ -137,7 +137,7 @@ print('AIS took {:.1f} seconds'.format(endtime - starttime))
 print('Estimated marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
     np.mean(log_marginal), np.std(log_marginal)))
 print('True      marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
-    np.mean(lp_true), np.std(lp_true)))
+    np.mean(lp_exact), np.std(lp_exact)))
 print('Final average acceptance rate: mean={:.1f}; sd={:.1f}'.format(
     np.mean(final_smthd_acceptance_rate), np.std(final_smthd_acceptance_rate)))
 
@@ -146,7 +146,7 @@ print('Final average acceptance rate: mean={:.1f}; sd={:.1f}'.format(
 # Plot the output
 print('Plotting marginal log likelihoods')
 fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
-ax.scatter(log_marginal, lp_true)
+ax.scatter(log_marginal, lp_exact)
 ax.set_xlabel('AIS')
 ax.set_ylabel('true')
 ax.set_title('Marginal log likelihoods')
