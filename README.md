@@ -27,7 +27,7 @@ The tests that appear to be working include:
 
   - `test-hmc`: a simple test of the HMC implementation
   - `test-hais-log-gamma`: a simple test to sample from and calculate the log normaliser of
-    an unnormalised log-Gamma distribution.
+    an unnormalised log-Gamma density.
 
 Planned tests that are not implemented or working yet include:
 
