@@ -4,13 +4,16 @@
 Test our HAIS implementation on example 1a from http://arxiv.org/abs/1205.1925
 
 We name the latent variable 'z' in place of 'a'
+
+The code is set up to estimate the log marginal of several batches (models with different parameters) concurrently.
+
+When L is around 5 (the latent dimensionality), there is still some considerable variance in the log marginal estimates.
 """
 
 
 import tensorflow as tf
 import numpy as np
-import hais
-from hais import HAIS, get_schedule
+from hais import ais
 import matplotlib.pyplot as plt
 from matplotlib import lines
 import seaborn as sns
@@ -22,8 +25,8 @@ tfd = tf.contrib.distributions
 #
 # Jupyter magic
 #
-%load_ext autoreload
-%autoreload 2
+# %load_ext autoreload
+# %autoreload 2
 
 
 #
@@ -33,13 +36,14 @@ tfd = tf.contrib.distributions
 SEED = 41
 #
 # HMC AIS
-N_ITER = 3500
+N_ITER = 1000
 N_CHAINS = 400
+STEPSIZE = .005
 #
 # Model
 BATCH_SIZE = 99
 M = 80  # x dimensions
-L = 5   # z dimensions
+L = 2   # z dimensions
 SIGMA_N = .1
 
 #
@@ -71,12 +75,12 @@ x.shape
 # True marginal likelihood
 true_Sigma = phi@phi.T + np.diag(SIGMA_N**2 * np.ones(M))
 lp_true = st.multivariate_normal.logpdf(x, cov=true_Sigma)
-lp_true.shape
-print('Calculated true marginal log likelihood(s): {}'.format(lp_true))
+print('Calculated true marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(np.mean(lp_true), np.std(lp_true)))
 
 #
-# Tensors
-z_prior = tfd.MultivariateNormalDiag(loc=np.zeros(L, dtype=np.float32))
+# Model
+prior_loc = tf.zeros([BATCH_SIZE, N_CHAINS, L])
+z_prior = tfd.MultivariateNormalDiag(loc=prior_loc)
 tf_phi = tf.constant(phi)
 x_ph = tf.placeholder(tf.float32, [BATCH_SIZE, M], name='x')
 
@@ -102,16 +106,18 @@ def log_likelihood(z):
 # Annealed importance sampling
 print('Constructing AIS computation graph')
 starttime = time.time()
-model = HAIS(qz=z_prior,
-             log_likelihood_fn=log_likelihood,
-             batch_size=BATCH_SIZE,
-             num_samples=N_CHAINS)
+model = ais.HAIS(prior=z_prior,
+                 log_target=log_likelihood,
+                 stepsize=STEPSIZE)
 #
 # Set up an annealing schedule
-schedule = hais.get_schedule(N_ITER, rad=4)
+schedule = ais.get_schedule(N_ITER, rad=4, for_calculating_marginal=True)
 #
 # Set up the computation graph
-log_normalizer, z_i, step_size, avg_acceptance_rate = model.ais(schedule)
+logw, z_i, smthd_acceptance_rate = model.ais(schedule)
+#
+# Calculate the log normalizer (aka log marginal), remember batches are in dimension 0, chains in dimension 1
+log_normalizer = model.log_normalizer(logw, samples_axis=1)
 endtime = time.time()
 print('Constructing graph took {:.1f} seconds'.format(endtime - starttime))
 #
@@ -124,19 +130,23 @@ sess.run(tf.global_variables_initializer())
 # Run AIS
 print('Running AIS')
 starttime = time.time()
-log_normalizer_ais, z_sampled, final_step_size, final_avg_acceptance_rate = \
-    sess.run([log_normalizer, z_i, step_size, avg_acceptance_rate], {x_ph: x})
+log_marginal, logw_ais, z_sampled, final_smthd_acceptance_rate = \
+    sess.run([log_normalizer, logw, z_i, smthd_acceptance_rate], {x_ph: x})
 endtime = time.time()
 print('AIS took {:.1f} seconds'.format(endtime - starttime))
-print('Estimated marginal log likelihood(s): {}'.format(log_normalizer_ais))
-print('True      marginal log likelihood(s): {}'.format(lp_true))
-print('Final step size: {}'.format(final_step_size))
-print('Final average acceptance rate: {}'.format(final_avg_acceptance_rate))
+print('Estimated marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
+    np.mean(log_marginal), np.std(log_marginal)))
+print('True      marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
+    np.mean(lp_true), np.std(lp_true)))
+print('Final average acceptance rate: mean={:.1f}; sd={:.1f}'.format(
+    np.mean(final_smthd_acceptance_rate), np.std(final_smthd_acceptance_rate)))
+
+
 #
 # Plot the output
 print('Plotting marginal log likelihoods')
-fig, (ax, ax_step, ax_accept) = plt.subplots(3, 1, figsize=(8, 12))
-ax.scatter(log_normalizer_ais, lp_true)
+fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
+ax.scatter(log_marginal, lp_true)
 ax.set_xlabel('AIS')
 ax.set_ylabel('true')
 ax.set_title('Marginal log likelihoods')
@@ -147,11 +157,7 @@ upper = min(xmax, ymax)
 ax.add_line(lines.Line2D([lower, upper], [lower, upper], linestyle='dashed', color='k', alpha=.3))
 #
 # Acceptance rate
-sns.distplot(final_avg_acceptance_rate.flatten(), ax=ax_accept)
-ax_accept.axvline(x=model.avg_acceptance_rate, linestyle='dashed', color='k', alpha=.3)
+sns.distplot(final_smthd_acceptance_rate.flatten(), ax=ax_accept)
+ax_accept.axvline(x=model.target_acceptance_rate, linestyle='dashed', color='k', alpha=.3)
 ax_accept.set_title('average acceptance rates (per batch per chain)')
-#
-# Step sizes
-sns.distplot(np.log10(final_step_size.flatten()), ax=ax_step)
-ax_step.set_title('average log_10 step sizes (per batch per chain)')
-fig.savefig('marginal-ll-our-latent.pdf')
+fig.savefig('hais-latent.pdf')
