@@ -24,29 +24,26 @@ of variables :math:`y = \\log(x)` we have the density for a log-gamma distributi
 """
 
 
-#
-# Jupyter magic
-#
-%load_ext autoreload
-%autoreload 2
-
-
 import time
 #
 # Scientific
 import numpy as np
 import scipy.special as sp
-import scipy.stats as st
 from hais import ais
 #
 # Tensorflow
 import tensorflow as tf
-import tensorflow.contrib.bayesflow as bf
 #
 # Plotting
 import matplotlib.pyplot as plt
-from matplotlib import lines
 import seaborn as sns
+
+
+#
+# Jupyter magic
+#
+# %load_ext autoreload
+# %autoreload 2
 
 
 #
@@ -92,7 +89,7 @@ def unnormalized_log_gamma_lpdf(x):
 #
 # Calculate the true log normalizer
 log_target, log_normalizer_true = \
-  unnormalized_log_gamma_lpdf, sp.gammaln(ALPHA) - ALPHA * np.log(BETA)
+    unnormalized_log_gamma_lpdf, sp.gammaln(ALPHA) - ALPHA * np.log(BETA)
 
 
 def unnormalized_normal_lpdf(x):
@@ -116,7 +113,7 @@ prior = tf.distributions.Normal(loc=tf.zeros(N_CHAINS), scale=tf.ones(N_CHAINS))
 model = ais.HAIS(prior=prior, log_target=log_target, stepsize=STEPSIZE)
 #
 # Set up an annealing schedule
-schedule = ais.get_schedule(N_ITER+1, rad=4, for_calculating_marginal=False)
+schedule = ais.get_schedule(N_ITER + 1, rad=4, for_calculating_marginal=False)
 # ais.temperature_pairs(ais.get_schedule(4, rad=4, for_calculating_marginal=False))
 schedule
 #
@@ -141,8 +138,6 @@ print('AIS took {:.1f} seconds'.format(endtime - starttime))
 # print('Final average acceptance rate: {}'.format(final_avg_acceptance_rate))
 print('Estimated log normalizer: {}'.format(log_normalizer_ais))
 print('True      log normalizer: {}'.format(log_normalizer_true))
-
-
 
 
 #
