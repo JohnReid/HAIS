@@ -26,7 +26,7 @@ SEED = 37
 NCHAINS = 2000
 NITER = 1000
 # normal parameters
-L = 2  # dimensions
+L = 3  # dimensions
 NU = L + 1.  # degrees of freedom for inverse-Wishart
 PSI = np.diag(np.ones(L))  # scale for inverse-Wishart
 MU0 = np.zeros(L)
@@ -35,7 +35,7 @@ M = 1.  # Prior pseudocount
 # HMC parameters
 TARGET_ACCEPTANCE_RATE = .65
 ACCEPTANCE_DECAY = .9
-STEPSIZE = .5
+STEPSIZE = .1
 # STEPSIZE_INITIAL = .01
 # STEPSIZE_MIN = 1e-8
 # STEPSIZE_MAX = 500
@@ -149,6 +149,8 @@ starttime = time.time()
 samples_hmc, accept_hmc = sess.run((samples_final.stack(), smoothed_accept_rate_final))
 endtime = time.time()
 print('Sampler took {:.1f} seconds'.format(endtime - starttime))
+print('Final smoothed acceptance rate: mean={:.1f}; sd={:.1f}'.format(
+    np.mean(accept_hmc), np.std(accept_hmc)))
 samples_hmc.shape
 burned_in = samples_hmc[int(NITER / 2):]
 burned_in.shape
@@ -159,10 +161,10 @@ for d in range(L):
   print('Standard deviation of (burned in) samples (dim {}): {:.3f}'.format(d, np.std(burned_in[:, :, d])))
   print('Desired standard deviation                (dim {}): {:.3f}'.format(d, np.sqrt(Sigma[d, d])))
 for (d0, d1) in itertools.combinations(range(L), 2):
-  print('Dimensions: {}, {}'.format(d0, d1))
-  rho = np.corrcoef(burned_in[:, :, d0].flatten(), burned_in[:, :, d1].flatten())[0, 1]
-  print('Sample correlation  : {:.3f}'.format(rho))
-  print('Expected correlation: {:.3f}'.format(Sigma[d0, d1] / np.sqrt(Sigma[d0, d0] * Sigma[d1, d1])))
+  sampled_rho = np.corrcoef(burned_in[:, :, d0].flatten(), burned_in[:, :, d1].flatten())[0, 1]
+  exact_rho = Sigma[d0, d1] / np.sqrt(Sigma[d0, d0] * Sigma[d1, d1])
+  print('Sample correlation   (dims {}, {}): {:.3f}'.format(d0, d1, sampled_rho))
+  print('Expected correlation (dims {}, {}): {:.3f}'.format(d0, d1, exact_rho))
 #
 # Drop samples so we don't have too many per chain
 MAX_SAMPLES_PER_CHAIN = 47
