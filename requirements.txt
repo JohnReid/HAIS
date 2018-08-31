@@ -7,3 +7,8 @@ scipy
 #
 matplotlib
 seaborn
+#
+# Documentation
+#
+sphinx
+sphinxcontrib-napoleon
