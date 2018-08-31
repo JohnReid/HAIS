@@ -50,7 +50,9 @@ pip install git+https://github.com/JohnReid/HAIS
 
 ### API documentation
 
-https://johnreid.github.io/HAIS/build/html/index.html
+The implementation contains some [documentation](https://johnreid.github.io/HAIS/build/html/index.html)
+generated from the docstrings that may be useful. However it is probably easier to examine the
+[test scripts](https://github.com/JohnReid/HAIS/tree/master/tests) and adapt them to your needs.
 
 
 ### Who do I talk to?
