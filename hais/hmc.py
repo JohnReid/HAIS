@@ -190,11 +190,8 @@ def hmc_sample(x0, log_target, eps, sample_shape=(), event_axes=(), v0=None,
     acceptance_decay: Decay used to calculate smoothed acceptance rate
 
   Returns:
-    (x, v, samples, smoothed_acceptance_rate)
-    x: Final state
-    v: Final velocity
-    samples: All the samples
-    smoothed_acceptance_rate: The smoothed acceptance rate
+    A tuple of the final state; final velocity;
+    all the samples; and the smoothed acceptance rate
   """
   def condition(i, x, v, samples, smoothed_accept_rate):
     "The condition keeps the while loop going until we have finished the iterations."
