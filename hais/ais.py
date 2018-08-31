@@ -1,3 +1,6 @@
+"""Implementation of HAIS.
+"""
+
 import tensorflow as tf
 import numpy as np
 from . import hmc
@@ -37,7 +40,7 @@ def temperature_pairs(schedule):
   """
   Calculate all consecutive pairs of temperatures.
   """
-  return np.asarray([[schedule[i], schedule[i+1]] for i in range(len(schedule)-1)])
+  return np.asarray([[schedule[i], schedule[i + 1]] for i in range(len(schedule) - 1)])
 
 
 class HAIS(object):
@@ -129,7 +132,7 @@ class HAIS(object):
       #
       # Get the pair of temperatures for this transition
       t0 = tf.gather(schedule_tf, index)  # First temperature
-      t1 = tf.gather(schedule_tf, index+1)  # Second temperature
+      t1 = tf.gather(schedule_tf, index + 1)  # Second temperature
       #
       # Calculate u at the new temperature and at the old one
       new_u = self.log_f_i(z, t1)
@@ -150,18 +153,21 @@ class HAIS(object):
       )
       #
       # Smooth the acceptance rate
-      smoothed_acceptance_rate = hmc.smooth_acceptance_rate(accept, smoothed_acceptance_rate, self.avg_acceptance_slowness)
+      smoothed_acceptance_rate = hmc.smooth_acceptance_rate(
+          accept, smoothed_acceptance_rate, self.avg_acceptance_slowness)
       #
       return tf.add(index, 1), logw, znew, vnew, smoothed_acceptance_rate
 
     #
     # While loop across temperature schedule
     _, logw, z_i, v_i, smoothed_acceptance_rate = \
-        tf.while_loop(condition, body, (i, logw, z0, v0, smoothed_acceptance_rate), parallel_iterations=1, swap_memory=True)
+        tf.while_loop(
+            condition, body, (i, logw, z0, v0, smoothed_acceptance_rate),
+            parallel_iterations=1, swap_memory=True)
     with tf.control_dependencies([logw, smoothed_acceptance_rate]):
       return logw, z_i, smoothed_acceptance_rate
 
-
   def log_normalizer(self, logw, samples_axis):
     "The log of the mean (axis=0 for samples typically) of exp(log weights)"
-    return tf.reduce_logsumexp(logw, axis=samples_axis) - tf.log(tf.cast(tf.shape(logw)[samples_axis], dtype=tf.float32))
+    return tf.reduce_logsumexp(logw, axis=samples_axis) \
+        - tf.log(tf.cast(tf.shape(logw)[samples_axis], dtype=tf.float32))

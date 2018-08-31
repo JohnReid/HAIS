@@ -1,0 +1,304 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>HAIS &#8212; HAIS 0.1.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="hais">
+<h1>HAIS<a class="headerlink" href="#hais" title="Permalink to this headline">¶</a></h1>
+<p>Hamiltonian Annealed Importance Sampling (HAIS) is a technique to estimate
+partition functions (normalising constants of probability densities) and/or
+sample from such densities. HAIS was proposed by Sohl-Dickstein and Culpepper (2011).</p>
+<div class="toctree-wrapper compound">
+</div>
+<div class="section" id="module-hais.ais">
+<span id="module-hais-ais"></span><h2>Module hais.ais<a class="headerlink" href="#module-hais.ais" title="Permalink to this headline">¶</a></h2>
+<p>Implementation of HAIS.</p>
+<dl class="class">
+<dt id="hais.ais.HAIS">
+<em class="property">class </em><code class="descclassname">hais.ais.</code><code class="descname">HAIS</code><span class="sig-paren">(</span><em>prior</em>, <em>log_target</em>, <em>stepsize=0.5</em>, <em>target_acceptance_rate=0.65</em>, <em>avg_acceptance_slowness=0.9</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hamiltonian Annealed Importance Sampling</p>
+<dl class="method">
+<dt id="hais.ais.HAIS.ais">
+<code class="descname">ais</code><span class="sig-paren">(</span><em>schedule</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.ais" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform annealed importance sampling.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>schedule</strong> – temperature schedule i.e. <span class="math notranslate nohighlight">\(p(z)p(x|z)^t\)</span></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="hais.ais.HAIS.energy_fn">
+<code class="descname">energy_fn</code><span class="sig-paren">(</span><em>z</em>, <em>t</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.energy_fn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the energy for each sample z at the temperature t. The temperature
+is a pair of temperatures, one for the prior and one for the target.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="hais.ais.HAIS.log_f_i">
+<code class="descname">log_f_i</code><span class="sig-paren">(</span><em>z</em>, <em>t</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.log_f_i" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unnormalized log density for intermediate distribution <span class="math notranslate nohighlight">\(f_i\)</span></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="hais.ais.HAIS.log_normalizer">
+<code class="descname">log_normalizer</code><span class="sig-paren">(</span><em>logw</em>, <em>samples_axis</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.log_normalizer" title="Permalink to this definition">¶</a></dt>
+<dd><p>The log of the mean (axis=0 for samples typically) of exp(log weights)</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.ais.get_schedule">
+<code class="descclassname">hais.ais.</code><code class="descname">get_schedule</code><span class="sig-paren">(</span><em>num</em>, <em>rad=4</em>, <em>for_calculating_marginal=True</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.get_schedule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate a temperature schedule for annealing.</p>
+<p>When calculating the marginal, we always include the prior at temperature (power) 1,
+only the temperature for the target varies.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><ul class="simple">
+<li>a 2D numpy array. The first dimension indexes the schedule.</li>
+</ul>
+<p>Each temperature has 2 components, one for the prior, one for the target.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.ais.temperature_pairs">
+<code class="descclassname">hais.ais.</code><code class="descname">temperature_pairs</code><span class="sig-paren">(</span><em>schedule</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.temperature_pairs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate all consecutive pairs of temperatures.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-hais.hmc">
+<span id="module-hais-hmc"></span><h2>Module hais.hmc<a class="headerlink" href="#module-hais.hmc" title="Permalink to this headline">¶</a></h2>
+<p>Implementation of Hamiltonian Monte Carlo.</p>
+<p>Currently only makes leapfrog moves with one step as that is all that is needed for HAIS.</p>
+<dl class="function">
+<dt id="hais.hmc.default_gamma">
+<code class="descclassname">hais.hmc.</code><code class="descname">default_gamma</code><span class="sig-paren">(</span><em>eps</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.default_gamma" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the default gamma (momentum refresh parameter).</p>
+<p>Follows equation 11. in Culpepper et al. (2011)</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.hmc.hamiltonian">
+<code class="descclassname">hais.hmc.</code><code class="descname">hamiltonian</code><span class="sig-paren">(</span><em>position</em>, <em>velocity</em>, <em>energy_fn</em>, <em>event_axes</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.hamiltonian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the Hamiltonian of the system.</p>
+<p>Eqn 20 and 21 in Sohl-Dickstein and Culpepper’s paper.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.hmc.hmc_move">
+<code class="descclassname">hais.hmc.</code><code class="descname">hmc_move</code><span class="sig-paren">(</span><em>x0</em>, <em>v0</em>, <em>energy_fn</em>, <em>event_axes</em>, <em>eps</em>, <em>gamma=None</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.hmc_move" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a HMC move.</p>
+<p>Implements the algorithm in
+Culpepper et al. 2011 “Building a better probabilistic model of images by factorization”.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>gamma</strong> – Set to 1 to remove any partial momentum refresh (momentum is sampled fresh every move)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.hmc.hmc_sample">
+<code class="descclassname">hais.hmc.</code><code class="descname">hmc_sample</code><span class="sig-paren">(</span><em>x0</em>, <em>log_target</em>, <em>eps</em>, <em>sample_shape=()</em>, <em>event_axes=()</em>, <em>v0=None</em>, <em>niter=1000</em>, <em>nchains=3000</em>, <em>acceptance_decay=0.9</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.hmc_sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sample using Hamiltonian Monte Carlo.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>x0</strong> – Initial state</li>
+<li><strong>log_target</strong> – The unnormalised target log density</li>
+<li><strong>eps</strong> – Step size for HMC</li>
+<li><strong>sample_shape</strong> – The shape of the samples, e.g. <cite>()</cite> for univariate or (3,) a 3-dimensional MVN</li>
+<li><strong>event_axes</strong> – Index into <cite>x0</cite>’s dimensions for individual samples, <cite>()</cite> for univariate sampling</li>
+<li><strong>v0</strong> – Initial velocity, will be sampled if None</li>
+<li><strong>niter</strong> – Number of iterations in each chain</li>
+<li><strong>nchains</strong> – Number of chains to run in parallel</li>
+<li><strong>acceptance_decay</strong> – Decay used to calculate smoothed acceptance rate</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A tuple of the final state; final velocity;
+all the samples; and the smoothed acceptance rate</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.hmc.hmc_updates">
+<code class="descclassname">hais.hmc.</code><code class="descname">hmc_updates</code><span class="sig-paren">(</span><em>x0</em>, <em>eps</em>, <em>smoothed_acceptance_rate</em>, <em>x1</em>, <em>accept</em>, <em>target_acceptance_rate</em>, <em>stepsize_inc</em>, <em>stepsize_dec</em>, <em>stepsize_min</em>, <em>stepsize_max</em>, <em>acceptance_decay</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.hmc_updates" title="Permalink to this definition">¶</a></dt>
+<dd><p>Do HMC updates, that is</p>
+<blockquote>
+<div><ul class="simple">
+<li>update the position according to whether the move was accepted or rejected</li>
+<li>update the step size adaptively according to whether the acceptance rate is high or low</li>
+<li>smooth the acceptance rates (over the iterations)</li>
+</ul>
+</div></blockquote>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.hmc.kinetic_energy">
+<code class="descclassname">hais.hmc.</code><code class="descname">kinetic_energy</code><span class="sig-paren">(</span><em>v</em>, <em>event_axes</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.kinetic_energy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the kinetic energy of the system.</p>
+<p><span class="math notranslate nohighlight">\(- \log \Phi(v)\)</span> in Sohl-Dickstein and Culpepper’s paper.
+Not normalised by <span class="math notranslate nohighlight">\(M \log(2 \pi) / 2\)</span></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.hmc.leapfrog">
+<code class="descclassname">hais.hmc.</code><code class="descname">leapfrog</code><span class="sig-paren">(</span><em>x0</em>, <em>v0</em>, <em>eps</em>, <em>energy_fn</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.leapfrog" title="Permalink to this definition">¶</a></dt>
+<dd><p>Simulate the Hamiltonian dynamics using leapfrog method.</p>
+<p>That is follow the 2nd step in the 5 step
+procedure in Section 2.3 of Sohl-Dickstein and Culpepper’s paper.
+Note this leapfrog procedure only has one step.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.hmc.metropolis_hastings_accept">
+<code class="descclassname">hais.hmc.</code><code class="descname">metropolis_hastings_accept</code><span class="sig-paren">(</span><em>E0</em>, <em>E1</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.metropolis_hastings_accept" title="Permalink to this definition">¶</a></dt>
+<dd><p>Accept or reject a move based on the energies of the two states.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.hmc.mh_accept_reject">
+<code class="descclassname">hais.hmc.</code><code class="descname">mh_accept_reject</code><span class="sig-paren">(</span><em>x0</em>, <em>v0</em>, <em>x1</em>, <em>v1</em>, <em>energy_fn</em>, <em>event_axes</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.mh_accept_reject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Accept or reject the leapfrog move according to Metropolis-Hastings.</p>
+<p>Step 3 in Sohl-Dickstein and Culpepper (2011).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.hmc.partial_momentum_refresh">
+<code class="descclassname">hais.hmc.</code><code class="descname">partial_momentum_refresh</code><span class="sig-paren">(</span><em>vdash</em>, <em>gamma</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.partial_momentum_refresh" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update vdash with a partial momentum refresh.</p>
+<p>Step 4 in Sohl-Dickstein and Culpepper (2011).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.hmc.tf_expand_rank">
+<code class="descclassname">hais.hmc.</code><code class="descname">tf_expand_rank</code><span class="sig-paren">(</span><em>input_</em>, <em>rank</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.tf_expand_rank" title="Permalink to this definition">¶</a></dt>
+<dd><p>Expand the <cite>input_</cite> tensor to the given rank by appending dimensions</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.hmc.tf_expand_tile">
+<code class="descclassname">hais.hmc.</code><code class="descname">tf_expand_tile</code><span class="sig-paren">(</span><em>input_</em>, <em>to_match</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.tf_expand_tile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Expand and tile the <cite>input_</cite> tensor to match the <cite>to_match</cite> tensor.</p>
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
+<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
+<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
+</ul>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">HAIS</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, John Reid and Halil Bilgin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.8</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
