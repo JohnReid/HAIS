@@ -146,8 +146,26 @@ def smooth_acceptance_rate(accept, old_acceptance_rate, acceptance_decay):
 
 
 def hmc_sample(x0, log_target, eps, sample_shape=(), event_axes=(), v0=None,
-               niter=1000, nchains=3000, target_acceptance_rate=.65, acceptance_decay=.9):
-  """Sample usng HMC.
+               niter=1000, nchains=3000, acceptance_decay=.9):
+  """Sample using Hamiltonian Monte Carlo.
+
+  Args:
+    x0: Initial state
+    log_target: The unnormalised target log density
+    eps: Step size for HMC
+    sample_shape: The shape of the samples, e.g. `()` for univariate or (3,) a 3-dimensional MVN
+    event_axes: Index into `x0`'s dimensions for individual samples, `()` for univariate sampling
+    v0: Initial velocity, will be sampled if None
+    niter: Number of iterations in each chain
+    nchains: Number of chains to run in parallel
+    acceptance_decay: Decay used to calculate smoothed acceptance rate
+
+  Returns:
+    (x, v, samples, smoothed_acceptance_rate)
+    x: Final state
+    v: Final velocity
+    samples: All the samples
+    smoothed_acceptance_rate: The smoothed acceptance rate
   """
   def condition(i, x, v, samples, smoothed_accept_rate):
     "The condition keeps the while loop going until we have finished the iterations."
@@ -185,7 +203,7 @@ def hmc_sample(x0, log_target, eps, sample_shape=(), event_axes=(), v0=None,
   iteration = tf.constant(0)
   #
   # Smoothed acceptance rate
-  smoothed_accept_rate = tf.constant(target_acceptance_rate, shape=(nchains,), dtype=tf.float32)
+  smoothed_accept_rate = tf.constant(.65, shape=(nchains,), dtype=tf.float32)
   #
   # Current step size and adjustments
   # stepsize = tf.constant(STEPSIZE_INITIAL, shape=(NCHAINS,), dtype=tf.float32)
