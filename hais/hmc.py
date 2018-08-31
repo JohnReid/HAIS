@@ -1,5 +1,7 @@
 """
-Code to implement Hamiltonian Monte Carlo.
+Implementation of Hamiltonian Monte Carlo.
+
+Currently only makes leapfrog moves with one step as that is all that is needed for HAIS.
 """
 
 import tensorflow as tf
@@ -63,10 +65,12 @@ def leapfrog(x0, v0, eps, energy_fn):
 def hmc_move(x0, v0, energy_fn, event_axes, eps, gamma=None):
   """
   Make a HMC move.
+  
+  Implements the algorithm in 
+  Culpepper et al. 2011 "Building a better probabilistic model of images by factorization".
 
-  Parameters:
-
-    - gamma: Set to 1 to remove any partial momentum refresh (momentum is sampled fresh every move)
+  Args:
+    gamma: Set to 1 to remove any partial momentum refresh (momentum is sampled fresh every move)
   """
   #
   # STEP 2:

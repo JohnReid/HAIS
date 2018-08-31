@@ -12,8 +12,8 @@ LOG_2_PI = np.log(2. * np.pi)
 
 def culpepper1a_log_marginal(x, phi, sigma_n):
   """Calculate the exact log marginal likelihood of the `x` given
-  `phi` and `sigma_n` in model 1a (Gaussian prior) from Culpepper
-  and Sohl-Dickstein (2011)."""
+  `phi` and `sigma_n` in model 1a (Gaussian prior) from
+  Sohl-Dickstein and Culpepper (2011)."""
   M, L = phi.shape
   #
   # Predictive covariance of x is sum of covariance of phi a and covariance of x|a
@@ -27,7 +27,7 @@ def culpepper1a_log_marginal(x, phi, sigma_n):
 
 
 def culpepper1a_log_marginal_overcomplicated(x, phi, sigma_n):
-  """Model 1a (Gaussian prior) from Culpepper and Sohl-Dickstein."""
+  """Model 1a (Gaussian prior) from Sohl-Dickstein and Culpepper."""
   raise NotImplementedError('This is an overcomplicated implementation that does not work')
   M, L = phi.shape
   sigma_n2 = sigma_n**2
