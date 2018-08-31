@@ -4,8 +4,6 @@ A TensorFlow implementation of Hamiltonian Annealed Importance Sampling (HAIS).
 We implement the [method](http://arxiv.org/abs/1205.1925) described by Sohl-Dickstein and Culpepper
 in their paper "Hamiltonian Annealed Importance Sampling for partition function estimation".
 
-Should be considered beta software for now.
-
 
 ### Related implementations
 
