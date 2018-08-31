@@ -162,4 +162,4 @@ ax.add_line(lines.Line2D([lower, upper], [lower, upper], linestyle='dashed', col
 sns.distplot(final_smthd_acceptance_rate.flatten(), ax=ax_accept)
 ax_accept.axvline(x=model.target_acceptance_rate, linestyle='dashed', color='k', alpha=.3)
 ax_accept.set_title('average acceptance rates (per batch per chain)')
-fig.savefig('hais-latent.pdf')
+fig.savefig('hais-model1a-gaussian.pdf')
