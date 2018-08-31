@@ -80,10 +80,11 @@ def leapfrog(x0, v0, eps, energy_fn):
   procedure in Section 2.3 of Sohl-Dickstein and Culpepper's paper.
   Note this leapfrog procedure only has one step.
   """
-  epshalf = eps / 2.
+  eps = tf.convert_to_tensor(eps)
+  epshalf = tf_expand_tile(eps / 2., v0)
   xhalf = x0 + epshalf * v0
   dE_dx = tf.gradients(tf.reduce_sum(energy_fn(xhalf)), xhalf)[0]
-  v1 = v0 - eps * dE_dx
+  v1 = v0 - tf_expand_tile(eps, v0) * dE_dx
   x1 = xhalf + epshalf * v1
   return x1, v1
 
@@ -122,7 +123,6 @@ def hmc_move(x0, v0, energy_fn, event_axes, eps, gamma=None):
     gamma = default_gamma(eps)
   vtilde = partial_momentum_refresh(vdash, gamma)
   #
-  # STEP 5:
   # Return state
   return accept, xdash, vtilde
 
@@ -135,6 +135,7 @@ def partial_momentum_refresh(vdash, gamma):
   # There is some disagreement between the above paper and the description of STEP 4.
   # Specifically the second sqrt below is omitted in the description of STEP 4.
   r = tf.random_normal(tf.shape(vdash))
+  gamma = tf_expand_tile(gamma, vdash)
   return - tf.sqrt(1 - gamma) * vdash + tf.sqrt(gamma) * r
 
 
@@ -190,8 +191,7 @@ def hmc_sample(x0, log_target, eps, sample_shape=(), event_axes=(), v0=None,
     acceptance_decay: Decay used to calculate smoothed acceptance rate
 
   Returns:
-    A tuple of the final state; final velocity;
-    all the samples; and the smoothed acceptance rate
+    A tuple (final state, final velocity, the samples, the smoothed acceptance rate)
   """
   def condition(i, x, v, samples, smoothed_accept_rate):
     "The condition keeps the while loop going until we have finished the iterations."
@@ -218,11 +218,11 @@ def hmc_sample(x0, log_target, eps, sample_shape=(), event_axes=(), v0=None,
     return tf.add(i, 1), xnew, vnew, samples, smoothed_accept_rate
 
   #
-  # Sample velocity if not provided
+  # Sample initial velocity if not provided
   if v0 is None:
     v0 = tf.random_normal(tf.shape(x0))
   #
-  # Our samples
+  # Keep the samples in a TensorArray
   samples = tf.TensorArray(dtype=x0.dtype, size=niter, element_shape=(nchains,) + sample_shape)
   #
   # Current iteration

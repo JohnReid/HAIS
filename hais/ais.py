@@ -52,8 +52,13 @@ class HAIS(object):
                prior,
                log_target,
                stepsize=.5,
+               avg_acceptance_slowness=0.9,
+               adapt_stepsize = False,
                target_acceptance_rate=.65,
-               avg_acceptance_slowness=0.9):
+               stepsize_dec = .9,
+               stepsize_inc = 1./.9,
+               stepsize_min = 1e-5,
+               stepsize_max = 1e3):
     """
     The model implements Hamiltonian Annealed Importance Sampling.
     Developed by @bilginhalil and @__Reidy__ on top of https://github.com/jiamings/ais/
@@ -85,8 +90,13 @@ class HAIS(object):
     # HMC
     self.stepsize = stepsize
     self.smoothed_acceptance_rate = target_acceptance_rate
-    self.target_acceptance_rate = target_acceptance_rate
     self.avg_acceptance_slowness = avg_acceptance_slowness
+    self.adapt_stepsize = adapt_stepsize
+    self.target_acceptance_rate = target_acceptance_rate
+    self.stepsize_dec = stepsize_dec
+    self.stepsize_inc = stepsize_inc
+    self.stepsize_min = stepsize_min
+    self.stepsize_max = stepsize_max
 
   def log_f_i(self, z, t):
     "Unnormalized log density for intermediate distribution :math:`f_i`"
@@ -121,13 +131,17 @@ class HAIS(object):
     logw = tf.zeros(self.batch_shape)
     z0 = self.prior.sample()
     v0 = tf.random_normal(tf.shape(z0))
+    if self.adapt_stepsize:
+      eps0 = tf.constant(self.stepsize, shape=self.batch_shape, dtype=tf.float32)
+    else:
+      eps0 = tf.constant(self.stepsize, dtype=tf.float32)
     smoothed_acceptance_rate = tf.constant(self.smoothed_acceptance_rate, shape=self.batch_shape, dtype=tf.float32)
 
-    def condition(index, logw, z, v, smoothed_acceptance_rate):
+    def condition(index, logw, z, v, eps, smoothed_acceptance_rate):
       "The condition keeps the while loop going until we reach the end of the schedule."
       return tf.less(index, len(schedule) - 1)
 
-    def body(index, logw, z, v, smoothed_acceptance_rate):
+    def body(index, logw, z, v, eps, smoothed_acceptance_rate):
       "The body of the while loop over the schedule."
       #
       # Get the pair of temperatures for this transition
@@ -149,23 +163,46 @@ class HAIS(object):
           v,
           lambda z: self.energy_fn(z, t1),
           event_axes=self.event_axes,
-          eps=self.stepsize
+          eps=eps
       )
       #
       # Smooth the acceptance rate
       smoothed_acceptance_rate = hmc.smooth_acceptance_rate(
           accept, smoothed_acceptance_rate, self.avg_acceptance_slowness)
       #
-      return tf.add(index, 1), logw, znew, vnew, smoothed_acceptance_rate
+      # Adaptive step size
+      if self.adapt_stepsize:
+        epsnew = self.adapt_step_size(eps, smoothed_acceptance_rate)
+      else:
+        epsnew = eps
+      #
+      return tf.add(index, 1), logw, znew, vnew, epsnew, smoothed_acceptance_rate
 
     #
     # While loop across temperature schedule
-    _, logw, z_i, v_i, smoothed_acceptance_rate = \
+    _, logw, z_i, v_i, eps_i, smoothed_acceptance_rate = \
         tf.while_loop(
-            condition, body, (i, logw, z0, v0, smoothed_acceptance_rate),
+            condition, body, (i, logw, z0, v0, eps0, smoothed_acceptance_rate),
             parallel_iterations=1, swap_memory=True)
+    #
+    # Return weights, samples, step sizes and acceptance rates
     with tf.control_dependencies([logw, smoothed_acceptance_rate]):
-      return logw, z_i, smoothed_acceptance_rate
+      return logw, z_i, eps_i, smoothed_acceptance_rate
+
+  def adapt_step_size(self, eps, smoothed_acceptance_rate):
+    """Adapt the step size to adjust the smoothed acceptance rate to a theoretical optimum.
+    """
+    # print('stepsize_inc: {}'.format(stepsize_inc.shape))
+    # print('stepsize_dec: {}'.format(stepsize_dec.shape))
+    epsadapted = tf.where(
+        smoothed_acceptance_rate > self.target_acceptance_rate,
+        tf.constant(self.stepsize_inc, shape=smoothed_acceptance_rate.shape),
+        tf.constant(self.stepsize_dec, shape=smoothed_acceptance_rate.shape)) * eps
+    #
+    # Make sure we stay within specified step size range
+    epsadapted = tf.clip_by_value(epsadapted, clip_value_min=self.stepsize_min, clip_value_max=self.stepsize_max)
+    #
+    return epsadapted
 
   def log_normalizer(self, logw, samples_axis):
     "The log of the mean (axis=0 for samples typically) of exp(log weights)"

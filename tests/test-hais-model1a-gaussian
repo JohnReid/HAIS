@@ -106,15 +106,13 @@ def log_likelihood(z):
 # Annealed importance sampling
 print('Constructing AIS computation graph')
 starttime = time.time()
-model = ais.HAIS(prior=z_prior,
-                 log_target=log_likelihood,
-                 stepsize=STEPSIZE)
+model = ais.HAIS(prior=z_prior, log_target=log_likelihood, stepsize=STEPSIZE, adapt_stepsize=True)
 #
 # Set up an annealing schedule
 schedule = ais.get_schedule(N_ITER, rad=4, for_calculating_marginal=True)
 #
 # Set up the computation graph
-logw, z_i, smthd_acceptance_rate = model.ais(schedule)
+logw, z_i, eps, smthd_acceptance_rate = model.ais(schedule)
 #
 # Calculate the log normalizer (aka log marginal), remember batches are in dimension 0, chains in dimension 1
 log_normalizer = model.log_normalizer(logw, samples_axis=1)
@@ -130,8 +128,8 @@ sess.run(tf.global_variables_initializer())
 # Run AIS
 print('Running AIS')
 starttime = time.time()
-log_marginal, logw_ais, z_sampled, final_smthd_acceptance_rate = \
-    sess.run([log_normalizer, logw, z_i, smthd_acceptance_rate], {x_ph: x})
+log_marginal, logw_ais, z_sampled, eps_final, final_smthd_acceptance_rate = \
+    sess.run([log_normalizer, logw, z_i, eps, smthd_acceptance_rate], {x_ph: x})
 endtime = time.time()
 print('AIS took {:.1f} seconds'.format(endtime - starttime))
 print('Estimated marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
@@ -140,14 +138,19 @@ print('True      marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
     np.mean(lp_exact), np.std(lp_exact)))
 rho = np.corrcoef(log_marginal, lp_exact)[0, 1]
 print('Correlation between estimates: {:.3f}'.format(rho))
-print('Final average acceptance rate: mean={:.1f}; sd={:.1f}'.format(
+print('Final step sizes: mean={:.1f}; sd={:.1f}'.format(
+    np.mean(eps_final), np.std(eps_final)))
+print('Final smoothed acceptance rate: mean={:.1f}; sd={:.1f}'.format(
     np.mean(final_smthd_acceptance_rate), np.std(final_smthd_acceptance_rate)))
 
 
 #
 # Plot the output
 print('Plotting marginal log likelihoods')
-fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
+if model.adapt_stepsize:
+  fig, (ax, ax_accept, ax_stepsize) = plt.subplots(3, 1, figsize=(8, 12))
+else:
+  fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
 ax.scatter(log_marginal, lp_exact)
 ax.set_xlabel('AIS')
 ax.set_ylabel('true')
@@ -162,4 +165,11 @@ ax.add_line(lines.Line2D([lower, upper], [lower, upper], linestyle='dashed', col
 sns.distplot(final_smthd_acceptance_rate.flatten(), ax=ax_accept)
 ax_accept.axvline(x=model.target_acceptance_rate, linestyle='dashed', color='k', alpha=.3)
 ax_accept.set_title('average acceptance rates (per batch per chain)')
+#
+# Step sizes
+if model.adapt_stepsize:
+  sns.distplot(eps_final.flatten(), ax=ax_stepsize)
+  ax_stepsize.axvline(x=model.stepsize, linestyle='dashed', color='k', alpha=.3)
+  ax_stepsize.set_title('Step sizes (per batch per chain)')
+#
 fig.savefig('hais-model1a-gaussian.pdf')

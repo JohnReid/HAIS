@@ -92,33 +92,19 @@ log_target, log_normalizer_true = \
     unnormalized_log_gamma_lpdf, sp.gammaln(ALPHA) - ALPHA * np.log(BETA)
 
 
-def unnormalized_normal_lpdf(x):
-  """
-  Unnormalized log probability density function of the normal(MU, SIGMA) distribution.
-  """
-  # assert x.shape == (N_CHAINS,)
-  return - tf.square((x - MU) / SIGMA) / 2.
-
-
-# log_target, log_normalizer_true = \
-#     unnormalized_normal_lpdf, .5 * (np.log(2.) + np.log(np.pi)) + np.log(SIGMA)
-
-
 #
 # Annealed importance sampling
 print('Constructing AIS computation graph')
 starttime = time.time()
 prior = tf.distributions.Normal(loc=tf.zeros(N_CHAINS), scale=tf.ones(N_CHAINS))
 # model = ais.HAIS(qz=prior, log_likelihood_fn=unnormalized_log_gamma_lpdf)
-model = ais.HAIS(prior=prior, log_target=log_target, stepsize=STEPSIZE)
+model = ais.HAIS(prior=prior, log_target=log_target, stepsize=STEPSIZE, adapt_stepsize=True)
 #
 # Set up an annealing schedule
 schedule = ais.get_schedule(N_ITER + 1, rad=4, for_calculating_marginal=False)
-# ais.temperature_pairs(ais.get_schedule(4, rad=4, for_calculating_marginal=False))
-schedule
 #
 # Set up the computation graph
-logw, z_i, avg_acceptance_rate = model.ais(schedule)
+logw, z_i, eps, avg_acceptance_rate = model.ais(schedule)
 log_normalizer = model.log_normalizer(logw, samples_axis=0)
 endtime = time.time()
 print('Constructing graph took {:.1f} seconds'.format(endtime - starttime))
@@ -130,20 +116,30 @@ sess.run(tf.global_variables_initializer())
 # Run AIS
 print('Running AIS')
 starttime = time.time()
-log_normalizer_ais, log_w_ais, z_sampled, final_avg_acceptance_rate = \
-    sess.run([log_normalizer, logw, z_i, avg_acceptance_rate])
+log_normalizer_ais, log_w_ais, z_sampled, eps_final, final_smthd_acceptance_rate = \
+    sess.run([log_normalizer, logw, z_i, eps, avg_acceptance_rate])
 endtime = time.time()
+np.mean(eps_final)
+np.std(eps_final)
+eps_final.shape
 print('AIS took {:.1f} seconds'.format(endtime - starttime))
 # print('Final step size: {}'.format(final_step_size))
-# print('Final average acceptance rate: {}'.format(final_avg_acceptance_rate))
+# print('Final average acceptance rate: {}'.format(final_smthd_acceptance_rate))
 print('Estimated log normalizer: {}'.format(log_normalizer_ais))
 print('True      log normalizer: {}'.format(log_normalizer_true))
+print('Final step sizes: mean={:.1f}; sd={:.1f}'.format(
+    np.mean(eps_final), np.std(eps_final)))
+print('Final smoothed acceptance rate: mean={:.1f}; sd={:.1f}'.format(
+    np.mean(final_smthd_acceptance_rate), np.std(final_smthd_acceptance_rate)))
 
 
 #
 # Plot the output
 print('Plotting log normalizer')
-fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
+if model.adapt_stepsize:
+  fig, (ax, ax_accept, ax_stepsize) = plt.subplots(3, 1, figsize=(8, 12))
+else:
+  fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
 # ax.scatter(log_normalizer_ais, log_normalizer_true)
 ax.set_xlabel('x')
 ax.set_ylabel('target')
@@ -157,7 +153,14 @@ target = sess.run(tf.exp(log_target(target_range) - log_normalizer_true))
 ax.plot(target_range, target)
 #
 # Acceptance rate
-sns.distplot(final_avg_acceptance_rate.flatten(), ax=ax_accept)
+sns.distplot(final_smthd_acceptance_rate.flatten(), ax=ax_accept)
 ax_accept.axvline(x=model.target_acceptance_rate, linestyle='dashed', color='k', alpha=.3)
 ax_accept.set_title('average acceptance rates (per batch per chain)')
+#
+# Step sizes
+if model.adapt_stepsize:
+  sns.distplot(eps_final.flatten(), ax=ax_stepsize)
+  ax_stepsize.axvline(x=model.stepsize, linestyle='dashed', color='k', alpha=.3)
+  ax_stepsize.set_title('Step sizes (per batch per chain)')
+#
 fig.savefig('hais-log-gamma.pdf')
