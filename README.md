@@ -50,6 +50,11 @@ pip install git+https://github.com/JohnReid/HAIS
 ```
 
 
+### API documentation
+
+https://johnreid.github.io/HAIS/build/html/index.html
+
+
 ### Who do I talk to?
 
 [John Reid](https://twitter.com/__Reidy__) or [Halil Bilgin](https://twitter.com/bilginhalil)
