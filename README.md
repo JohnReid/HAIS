@@ -29,7 +29,7 @@ The tests that appear to be working include:
   - `test-hmc-mvn`: a test of the HMC implementation that samples from a multivariate normal
   - `test-hais-log-gamma`: a simple test to sample from and calculate the log normaliser of
     an unnormalised log-Gamma density.
-  - `test-hais-latent`: a test that estimates the log marginal likelihood for model 1a with
+  - `test-hais-model1a-gaussian`: a test that estimates the log marginal likelihood for model 1a with
     a Gaussian prior from Culpepper and Sohl-Dickstein's paper.
 
 
