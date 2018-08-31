@@ -3,6 +3,11 @@ import numpy as np
 from . import hmc
 
 
+#
+# Theoretically optimal acceptance rate
+TARGET_ACCEPTANCE_RATE = .65
+
+
 def get_schedule(num, rad=4, for_calculating_marginal=True):
   """
   Calculate a temperature schedule for annealing.

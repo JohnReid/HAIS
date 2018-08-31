@@ -28,8 +28,6 @@ MU = 1.
 SIGMA = .5
 #
 # HMC parameters
-TARGET_ACCEPTANCE_RATE = .65
-ACCEPTANCE_DECAY = .9
 STEPSIZE = .5
 # STEPSIZE_INITIAL = .01
 # STEPSIZE_MIN = 1e-8
@@ -52,61 +50,14 @@ def unnormalized_normal_lpdf(x):
   assert x.shape == (NCHAINS,)
   return - tf.square((x - MU) / SIGMA) / 2.
 
-
-def condition(i, x, v, samples, smoothed_accept_rate):
-  "The condition keeps the while loop going until we have finished the iterations."
-  return tf.less(i, NITER)
-
-
-def body(i, x, v, samples, smoothed_accept_rate):
-  "The body of the while loop over the iterations."
-  #
-  # New step: make a HMC move
-  accept, xnew, vnew = hmc.hmc_move(
-      x,
-      v,
-      energy_fn=lambda x: - unnormalized_normal_lpdf(x),
-      event_axes=(),
-      eps=STEPSIZE,
-  )
-  #
-  # Update the TensorArray storing the samples
-  samples = samples.write(i, xnew)
-  #
-  # Smooth the acceptance rate
-  smoothed_accept_rate = hmc.smooth_acceptance_rate(accept, smoothed_accept_rate, ACCEPTANCE_DECAY)
-  #
-  return tf.add(i, 1), xnew, vnew, samples, smoothed_accept_rate
-
-
 #
-# Sample initial x and momentum, v
+# Prior for initial x
 prior = tf.distributions.Normal(loc=tf.zeros(NCHAINS), scale=tf.ones(NCHAINS))
-x0 = prior.sample()
-v0 = tf.random_normal(tf.shape(x0))
 #
-# Our samples
-samples = tf.TensorArray(dtype=tf.float32, size=NITER, element_shape=(NCHAINS,))
-#
-# Current iteration
-iteration = tf.constant(0)
-#
-# Smoothed acceptance rate
-smoothed_accept_rate = tf.constant(TARGET_ACCEPTANCE_RATE, shape=(NCHAINS,), dtype=tf.float32)
-#
-# Current step size and adjustments
-# stepsize = tf.constant(STEPSIZE_INITIAL, shape=(NCHAINS,), dtype=tf.float32)
-# stepsize_dec = STEPSIZE_DEC * tf.ones(smoothed_acceptance_rate.shape)
-# stepsize_inc = STEPSIZE_INC * tf.ones(smoothed_acceptance_rate.shape)
-#
-# While loop across iterations
-n, x, v, samples_final, smoothed_accept_rate_final = \
-    tf.while_loop(
-        condition,
-        body,
-        (iteration, x0, v0, samples, smoothed_accept_rate),
-        parallel_iterations=1,
-        swap_memory=True)
+# Sample
+x, v, samples_final, smoothed_accept_rate_final = hmc.hmc_sample(
+    prior.sample(), unnormalized_normal_lpdf, eps=STEPSIZE,
+    niter=NITER, nchains=NCHAINS)
 #
 # Construct and initialise the session
 sess = tf.Session()
@@ -148,6 +99,5 @@ ax.plot(xpdf, st.norm.pdf(xpdf, loc=MU, scale=SIGMA), linestyle='dotted', lw=1, 
 # Acceptance rate
 print('Plotting acceptance rate')
 sns.distplot(accept_hmc.flatten(), ax=ax_accept)
-ax_accept.axvline(x=TARGET_ACCEPTANCE_RATE, linestyle='dashed', color='k', alpha=.3)
 ax_accept.set_title('Smoothed acceptance rates')
 fig.savefig('hmc-samples.pdf')

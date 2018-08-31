@@ -5,6 +5,7 @@ Code to implement Hamiltonian Monte Carlo.
 import tensorflow as tf
 
 
+
 def tf_expand_rank(input_, rank):
   "Expand the `input_` tensor to the given rank by appending dimensions"
   while len(input_.shape) < rank:
@@ -95,7 +96,7 @@ def hmc_move(x0, v0, energy_fn, event_axes, eps, gamma=None):
   # Partial momentum refresh.
   # See Eqn 11. of Culpepper et al. 2011 "Building a better probabilistic model of images by factorization"
   if gamma is None:
-    gamma = 1 - tf.exp(eps * tf.log(1/2.))
+    gamma = 1 - tf.exp(eps * tf.log(1 / 2.))
   # There is some disagreement between the above paper and the description of STEP 4.
   # Specifically the second sqrt below is omitted in the description of STEP 4.
   # Note also that we removed the leading minus '-' from the vtilde equation
@@ -133,7 +134,7 @@ def hmc_updates(x0, eps, smoothed_acceptance_rate, x1, accept,
   #
   # Smooth the acceptance rate
   new_acceptance_rate = smooth_acceptance_rate(accept, smoothed_acceptance_rate, acceptance_decay)
-  return xdash, new_eps, new_acceptance_rate
+  return new_eps, new_acceptance_rate
 
 
 def smooth_acceptance_rate(accept, old_acceptance_rate, acceptance_decay):
@@ -142,3 +143,62 @@ def smooth_acceptance_rate(accept, old_acceptance_rate, acceptance_decay):
   assert accept.shape == old_acceptance_rate.shape
   new_acceptance_rate = tf.add(acceptance_decay * old_acceptance_rate, (1.0 - acceptance_decay) * tf.to_float(accept))
   return new_acceptance_rate
+
+
+def hmc_sample(x0, log_target, eps, sample_shape=(), event_axes=(), v0=None,
+               niter=1000, nchains=3000, target_acceptance_rate=.65, acceptance_decay=.9):
+  """Sample usng HMC.
+  """
+  def condition(i, x, v, samples, smoothed_accept_rate):
+    "The condition keeps the while loop going until we have finished the iterations."
+    return tf.less(i, niter)
+
+  def body(i, x, v, samples, smoothed_accept_rate):
+    "The body of the while loop over the iterations."
+    #
+    # New step: make a HMC move
+    accept, xnew, vnew = hmc_move(
+        x,
+        v,
+        energy_fn=lambda x: -log_target(x),
+        event_axes=event_axes,
+        eps=eps,
+    )
+    #
+    # Update the TensorArray storing the samples
+    samples = samples.write(i, xnew)
+    #
+    # Smooth the acceptance rate
+    smoothed_accept_rate = smooth_acceptance_rate(accept, smoothed_accept_rate, acceptance_decay)
+    #
+    return tf.add(i, 1), xnew, vnew, samples, smoothed_accept_rate
+
+  #
+  # Sample velocity if not provided
+  if v0 is None:
+    v0 = tf.random_normal(tf.shape(x0))
+  #
+  # Our samples
+  samples = tf.TensorArray(dtype=x0.dtype, size=niter, element_shape=(nchains,) + sample_shape)
+  #
+  # Current iteration
+  iteration = tf.constant(0)
+  #
+  # Smoothed acceptance rate
+  smoothed_accept_rate = tf.constant(target_acceptance_rate, shape=(nchains,), dtype=tf.float32)
+  #
+  # Current step size and adjustments
+  # stepsize = tf.constant(STEPSIZE_INITIAL, shape=(NCHAINS,), dtype=tf.float32)
+  # stepsize_dec = STEPSIZE_DEC * tf.ones(smoothed_acceptance_rate.shape)
+  # stepsize_inc = STEPSIZE_INC * tf.ones(smoothed_acceptance_rate.shape)
+  #
+  # While loop across iterations
+  n, x, v, samples_final, smoothed_accept_rate_final = \
+      tf.while_loop(
+          condition,
+          body,
+          (iteration, x0, v0, samples, smoothed_accept_rate),
+          parallel_iterations=1,
+          swap_memory=True)
+  #
+  return x, v, samples_final, smoothed_accept_rate_final
