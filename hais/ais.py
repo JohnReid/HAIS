@@ -86,7 +86,7 @@ class HAIS(object):
     self.avg_acceptance_slowness = avg_acceptance_slowness
 
   def log_f_i(self, z, t):
-    "Unnormalized log density for intermediate distribution `f_i`"
+    "Unnormalized log density for intermediate distribution :math:`f_i`"
     return - self.energy_fn(z, t)
 
   def energy_fn(self, z, t):
@@ -106,7 +106,8 @@ class HAIS(object):
     """
     Perform annealed importance sampling.
 
-        :param schedule: temperature schedule i.e. `p(z)p(x|z)^t`
+    Args:
+        schedule: temperature schedule i.e. :math:`p(z)p(x|z)^t`
     """
     #
     # Convert the schedule into consecutive pairs of temperatures and their index
