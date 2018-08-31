@@ -5,6 +5,12 @@ We implement the [method](http://arxiv.org/abs/1205.1925) described by Sohl-Dick
 in their paper "Hamiltonian Annealed Importance Sampling for partition function estimation".
 
 
+### Features
+
+  - Partial momentum refresh (from HAIS paper).
+  - Adaptive step size for Hamiltonian Monte Carlo.
+
+
 ### Related implementations
 
 We have used ideas and built upon the code from the following repositories:
