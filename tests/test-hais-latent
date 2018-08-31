@@ -5,9 +5,9 @@ Test our HAIS implementation on example 1a from http://arxiv.org/abs/1205.1925
 
 We name the latent variable 'z' in place of 'a'
 
-The code is set up to estimate the log marginal of several batches (models with different parameters) concurrently.
+The code is set up to estimate the log marginal of several batches (different `x`) concurrently.
 
-When L is around 5 (the latent dimensionality), there is still some considerable variance in the log marginal estimates.
+When the latent dimensionality, L, is around 5, there is still some considerable variance in the log marginal estimates.
 """
 
 

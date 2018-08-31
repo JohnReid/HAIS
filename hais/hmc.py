@@ -26,7 +26,9 @@ def tf_expand_tile(input_, to_match):
 
 def kinetic_energy(v, event_axes):
   """
-  Calculate the kinetic energy of the system. :math:`- \\log \\Phi(v)` in Sohl-Dickstein and Culpepper's paper.
+  Calculate the kinetic energy of the system.
+
+  :math:`- \\log \\Phi(v)` in Sohl-Dickstein and Culpepper's paper.
   Not normalised by :math:`M \\log(2 \\pi) / 2`
   """
   return 0.5 * tf.reduce_sum(tf.square(v), axis=event_axes)
@@ -34,11 +36,32 @@ def kinetic_energy(v, event_axes):
 
 def hamiltonian(position, velocity, energy_fn, event_axes):
   """
-  Calculate the Hamiltonian of the system. Eqn 20 and 21 in Sohl-Dickstein and Culpepper's paper.
+  Calculate the Hamiltonian of the system.
+
+  Eqn 20 and 21 in Sohl-Dickstein and Culpepper's paper.
   """
   potential = energy_fn(position)
   momentum = kinetic_energy(velocity, event_axes)
   return potential + momentum
+
+
+def mh_accept_reject(x0, v0, x1, v1, energy_fn, event_axes):
+  """Accept or reject the leapfrog move according to Metropolis-Hastings.
+
+  Step 3 in Sohl-Dickstein and Culpepper (2011).
+  """
+  E0 = hamiltonian(x0, v0, energy_fn, event_axes)
+  E1 = hamiltonian(x1, -v1, energy_fn, event_axes)
+  accept = metropolis_hastings_accept(E0=E0, E1=E1)
+  # print('accept: {}'.format(accept.shape))
+  # print('x0: {}'.format(x0.shape))
+  # print('x1: {}'.format(x1.shape))
+  # Expand the accept (which has batch shape) to full (batch + event) shape.
+  accept_tiled = tf_expand_tile(accept, x1)
+  xdash = tf.where(accept_tiled, x1, x0)
+  vdash = tf.where(accept_tiled, -v1, v0)
+  # print('xdash: {}'.format(xdash.shape))
+  return xdash, vdash, accept
 
 
 def metropolis_hastings_accept(E0, E1):
@@ -51,15 +74,26 @@ def metropolis_hastings_accept(E0, E1):
 
 def leapfrog(x0, v0, eps, energy_fn):
   """
-  Simulate the Hamiltonian dynamics using leapfrog method. That is follow the 2nd step in the 5 step
+  Simulate the Hamiltonian dynamics using leapfrog method.
+
+  That is follow the 2nd step in the 5 step
   procedure in Section 2.3 of Sohl-Dickstein and Culpepper's paper.
+  Note this leapfrog procedure only has one step.
   """
   epshalf = eps / 2.
   xhalf = x0 + epshalf * v0
   dE_dx = tf.gradients(tf.reduce_sum(energy_fn(xhalf)), xhalf)[0]
   v1 = v0 - eps * dE_dx
   x1 = xhalf + epshalf * v1
-  return x1, -v1
+  return x1, v1
+
+
+def default_gamma(eps):
+  """Calculate the default gamma (momentum refresh parameter).
+
+  Follows equation 11. in Culpepper et al. (2011)
+  """
+  return 1. - tf.exp(eps * tf.log(1 / 2.))
 
 
 def hmc_move(x0, v0, energy_fn, event_axes, eps, gamma=None):
@@ -84,29 +118,17 @@ def hmc_move(x0, v0, energy_fn, event_axes, eps, gamma=None):
   #
   # STEP 3:
   # Accept or reject according to MH
-  E0 = hamiltonian(x0, v0, energy_fn, event_axes)
-  E1 = hamiltonian(x1, v1, energy_fn, event_axes)
-  accept = metropolis_hastings_accept(E0=E0, E1=E1)
-  # print('accept: {}'.format(accept.shape))
-  # print('x0: {}'.format(x0.shape))
-  # print('x1: {}'.format(x1.shape))
-  # Expand the accept (which has batch shape) to full (batch + event) shape.
-  accept_tiled = tf_expand_tile(accept, x1)
-  xdash = tf.where(accept_tiled, x1, x0)
-  vdash = tf.where(accept_tiled, -v1, v0)
-  # print('xdash: {}'.format(xdash.shape))
+  xdash, vdash, accept = mh_accept_reject(x0, v0, x1, v1, energy_fn, event_axes)
   #
   # STEP 4:
   # Partial momentum refresh.
-  # See Eqn 11. of Culpepper et al. 2011 "Building a better probabilistic model of images by factorization"
+  # gamma is the parameter governing this
   if gamma is None:
-    gamma = 1 - tf.exp(eps * tf.log(1 / 2.))
+    gamma = default_gamma(eps)
   # There is some disagreement between the above paper and the description of STEP 4.
   # Specifically the second sqrt below is omitted in the description of STEP 4.
-  # Note also that we removed the leading minus '-' from the vtilde equation
-  # as this improved performance
   r = tf.random_normal(tf.shape(vdash))
-  vtilde = tf.sqrt(1 - gamma) * vdash + tf.sqrt(gamma) * r
+  vtilde = - tf.sqrt(1 - gamma) * vdash + tf.sqrt(gamma) * r
   #
   # STEP 5:
   # Return state
