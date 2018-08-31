@@ -99,7 +99,7 @@ def default_gamma(eps):
 def hmc_move(x0, v0, energy_fn, event_axes, eps, gamma=None):
   """
   Make a HMC move.
-  
+
   Implements the algorithm in 
   Culpepper et al. 2011 "Building a better probabilistic model of images by factorization".
 
@@ -109,12 +109,7 @@ def hmc_move(x0, v0, energy_fn, event_axes, eps, gamma=None):
   #
   # STEP 2:
   # Simulate the dynamics of the system using leapfrog
-  x1, v1 = leapfrog(
-      x0=x0,
-      v0=v0,
-      eps=eps,
-      energy_fn=energy_fn
-  )
+  x1, v1 = leapfrog(x0=x0, v0=v0, eps=eps, energy_fn=energy_fn)
   #
   # STEP 3:
   # Accept or reject according to MH
@@ -125,14 +120,22 @@ def hmc_move(x0, v0, energy_fn, event_axes, eps, gamma=None):
   # gamma is the parameter governing this
   if gamma is None:
     gamma = default_gamma(eps)
-  # There is some disagreement between the above paper and the description of STEP 4.
-  # Specifically the second sqrt below is omitted in the description of STEP 4.
-  r = tf.random_normal(tf.shape(vdash))
-  vtilde = - tf.sqrt(1 - gamma) * vdash + tf.sqrt(gamma) * r
+  vtilde = partial_momentum_refresh(vdash, gamma)
   #
   # STEP 5:
   # Return state
   return accept, xdash, vtilde
+
+
+def partial_momentum_refresh(vdash, gamma):
+  """Update vdash with a partial momentum refresh.
+
+  Step 4 in Sohl-Dickstein and Culpepper (2011).
+  """
+  # There is some disagreement between the above paper and the description of STEP 4.
+  # Specifically the second sqrt below is omitted in the description of STEP 4.
+  r = tf.random_normal(tf.shape(vdash))
+  return - tf.sqrt(1 - gamma) * vdash + tf.sqrt(gamma) * r
 
 
 def hmc_updates(x0, eps, smoothed_acceptance_rate, x1, accept,
