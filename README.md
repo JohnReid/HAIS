@@ -7,8 +7,10 @@ in their paper "Hamiltonian Annealed Importance Sampling for partition function 
 
 ### Features
 
-  - Partial momentum refresh (from HAIS paper).
-  - Adaptive step size for Hamiltonian Monte Carlo.
+  - Partial momentum refresh (from HAIS paper). This preserves some fraction of the Hamiltonian Monte
+    Carlo momentum across annealing distributions resulting in more accurate estimation.
+  - Adaptive step size for Hamiltonian Monte Carlo. This is a simple scheme to adjust the step size for
+    each chain in order to push the smoothed acceptance rate towards a theoretical optimum.
 
 
 ### Related implementations
