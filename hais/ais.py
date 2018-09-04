@@ -1,4 +1,10 @@
-"""Implementation of HAIS.
+"""Implementation of Hamiltonian Annealed Importance Sampling (HAIS).
+
+The implementation includes:
+
+  - partial momentum refresh across HMC moves (the main idea of Sohl-Dickstein and Culpepper).
+  - adaptive HMC step sizes to attempt to acheive an optimal acceptance rate.
+
 """
 
 import tensorflow as tf
@@ -11,21 +17,40 @@ from . import hmc
 TARGET_ACCEPTANCE_RATE = .65
 
 
-def get_schedule(num, rad=4, for_calculating_marginal=True):
+def get_schedule(T, r=4, for_calculating_marginal=True):
   """
   Calculate a temperature schedule for annealing.
 
-  When calculating the marginal, we always include the prior at temperature (power) 1,
-  only the temperature for the target varies.
+  Evenly spaced points in :math:`[-r, r]` are pushed
+  through the sigmoid function and affinely transformed to :math:`[0, 1]`.
+
+  .. math::
+
+    t_i &= (\\frac{2i}{T - 1} - 1) r, \\quad i = 0, \dots, T-1 \\\\
+    s_i &= \\frac{1}{1+e^{-t_i}} \\\\
+    \\beta_i &= \\frac{s_i - s_0}{s_{T-1} - s_0}
+
+  Args:
+    T: number of annealed densities (temperatures).
+    r: defines the domain of the sigmoid.
+    for_calculating_marginal: If True, the temperatures for the prior
+      will all be 1. Otherwise, they will be :math:`1 - \\beta_i`.
 
   Returns:
-
-    - a 2D numpy array. The first dimension indexes the schedule.
+    2D numpy array: A numpy array with shape `(2, T)`, the first dimension indexes the prior
+    and the target, the second dimension indexes the annealed densities.
     Each temperature has 2 components, one for the prior, one for the target.
+    The temperatures for the target are defined by the :math:`\\beta_i` above,
+    i.e. `schedule[1, i]` :math:`= \\beta_i`.
+    When calculating the marginal, we always include the prior at temperature 1,
+    i.e. `schedule[0, i] = 1` for all :math:`i`,
+    only the temperature for the target varies (from 0 to 1). This effectively
+    makes the target distribution proportional to the posterior.
+
   """
-  if num == 1:
+  if T == 1:
     raise ValueError('Must have at least two temperatures')
-  t = np.linspace(-rad, rad, num)
+  t = np.linspace(-r, r, T)
   s = 1.0 / (1.0 + np.exp(-t))
   beta = (s - np.min(s)) / (np.max(s) - np.min(s))
   schedule = np.array([1. - beta, beta]).T
@@ -36,23 +61,16 @@ def get_schedule(num, rad=4, for_calculating_marginal=True):
   return schedule
 
 
-def temperature_pairs(schedule):
-  """
-  Calculate all consecutive pairs of temperatures.
-  """
-  return np.asarray([[schedule[i], schedule[i + 1]] for i in range(len(schedule) - 1)])
-
-
 class HAIS(object):
   """
-  Hamiltonian Annealed Importance Sampling
+  An implementation of Hamiltonian Annealed Importance Sampling (HAIS).
   """
 
   def __init__(self,
                prior,
                log_target,
                stepsize=.5,
-               avg_acceptance_slowness=0.9,
+               smthd_acceptance_decay=0.9,
                adapt_stepsize = False,
                target_acceptance_rate=.65,
                stepsize_dec = .9,
@@ -60,21 +78,29 @@ class HAIS(object):
                stepsize_min = 1e-5,
                stepsize_max = 1e3):
     """
-    The model implements Hamiltonian Annealed Importance Sampling.
-    Developed by @bilginhalil and @__Reidy__ on top of https://github.com/jiamings/ais/
-
     Example use case:
-    logp(x|z) = |integrate over z|{logp(x|z,theta) + logp(z)}
-    p(x|z, theta) -> likelihood function p(z) -> prior
+    :math:`\\log p(x|z) = \\int \\log p(x|z,\\theta) + \\log p(z) dz`
+    :math:`p(x|z, theta) -> likelihood function p(z) -> prior`
 
-    :param prior: The prior (or proposal distribution)
-    :param log_target: Outputs log p(z) (up to a constant), it should take one parameter: z
-
-    The following are parameters for HMC.
-    :param stepsize:
-    :param n_steps:
-    :param target_acceptance_rate:
-    :param avg_acceptance_slowness:
+    Args:
+      prior: The prior (or proposal distribution).
+      log_target: Function f(z) that returns a tensor to evaluate :math:`\\log p(z)` (up to a constant).
+        When estimating the marginal likelihood, this function should calculate the likelihood.
+      stepsize: HMC step size.
+      smthd_acceptance_decay: The decay used when smoothing the acceptance rates.
+      adapt_stepsize: If true the algorithm will adapt the step size for each chain to encourage
+        the smoothed acceptance rate to approach a target acceptance rate.
+      target_acceptance_rate: If adapting step sizes, the target smoothed acceptance rate. 0.65 is
+        near the theoretical optimum, see "MCMC Using Hamiltonian Dynamics" by Radford Neal in the
+        "Handbook of Monte Carlo" (2011).
+      stepsize_dec: The scaling factor by which to reduce the step size if the acceptance rate is too low.
+        Only used when adapting step sizes.
+      stepsize_inc: The scaling factor by which to increase the step size if the acceptance rate is too high.
+        Only used when adapting step sizes.
+      stepsize_min: A hard lower bound on the step size.
+        Only used when adapting step sizes.
+      stepsize_max: A hard upper bound on the step size.
+        Only used when adapting step sizes.
     """
     #
     # Model
@@ -90,7 +116,7 @@ class HAIS(object):
     # HMC
     self.stepsize = stepsize
     self.smoothed_acceptance_rate = target_acceptance_rate
-    self.avg_acceptance_slowness = avg_acceptance_slowness
+    self.smthd_acceptance_decay = smthd_acceptance_decay
     self.adapt_stepsize = adapt_stepsize
     self.target_acceptance_rate = target_acceptance_rate
     self.stepsize_dec = stepsize_dec
@@ -168,7 +194,7 @@ class HAIS(object):
       #
       # Smooth the acceptance rate
       smoothed_acceptance_rate = hmc.smooth_acceptance_rate(
-          accept, smoothed_acceptance_rate, self.avg_acceptance_slowness)
+          accept, smoothed_acceptance_rate, self.smthd_acceptance_decay)
       #
       # Adaptive step size
       if self.adapt_stepsize:

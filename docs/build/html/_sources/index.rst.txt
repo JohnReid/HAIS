@@ -6,25 +6,20 @@
 HAIS
 ====
 
-Hamiltonian Annealed Importance Sampling (HAIS) is a technique to estimate
-partition functions (normalising constants of probability densities) and/or
-sample from such densities. HAIS was proposed by Sohl-Dickstein and Culpepper (2011).
+This is a tensorflow implementation of Hamiltonian Annealed Importance Sampling
+(HAIS). HAIS is a technique to estimate partition functions (normalising
+constants of probability densities) and/or sample from such densities. HAIS was
+proposed by Sohl-Dickstein and Culpepper (2011).
 
+Developed by `@__Reidy__ <https://twitter.com/__Reidy__>`_ and `@bilginhalil <https://twitter.com/bilginhalil>`_
+and derived from https://github.com/jiamings/ais/.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-
-Module hais.ais
----------------
-.. automodule:: hais.ais
-  :members:
-
-Module hais.hmc
----------------
-.. automodule:: hais.hmc
-  :members:
+   ais.rst
+   hmc.rst
 
 
 Indices and tables

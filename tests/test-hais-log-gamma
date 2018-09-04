@@ -101,7 +101,7 @@ prior = tf.distributions.Normal(loc=tf.zeros(N_CHAINS), scale=tf.ones(N_CHAINS))
 model = ais.HAIS(prior=prior, log_target=log_target, stepsize=STEPSIZE, adapt_stepsize=True)
 #
 # Set up an annealing schedule
-schedule = ais.get_schedule(N_ITER + 1, rad=4, for_calculating_marginal=False)
+schedule = ais.get_schedule(T=N_ITER + 1, r=4, for_calculating_marginal=False)
 #
 # Set up the computation graph
 logw, z_i, eps, avg_acceptance_rate = model.ais(schedule)

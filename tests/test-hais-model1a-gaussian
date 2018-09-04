@@ -109,7 +109,7 @@ starttime = time.time()
 model = ais.HAIS(prior=z_prior, log_target=log_likelihood, stepsize=STEPSIZE, adapt_stepsize=True)
 #
 # Set up an annealing schedule
-schedule = ais.get_schedule(N_ITER, rad=4, for_calculating_marginal=True)
+schedule = ais.get_schedule(T=N_ITER + 1, r=4, for_calculating_marginal=True)
 #
 # Set up the computation graph
 logw, z_i, eps, smthd_acceptance_rate = model.ais(schedule)
