@@ -137,10 +137,10 @@ print('Estimated marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
 print('True      marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
     np.mean(lp_exact), np.std(lp_exact)))
 rho = np.corrcoef(log_marginal, lp_exact)[0, 1]
-print('Correlation between estimates: {:.3f}'.format(rho))
-print('Final step sizes: mean={:.1f}; sd={:.1f}'.format(
+print('Correlation between estimates: {:.3g}'.format(rho))
+print('Final step sizes: mean={:.1g}; sd={:.1g}'.format(
     np.mean(eps_final), np.std(eps_final)))
-print('Final smoothed acceptance rate: mean={:.1f}; sd={:.1f}'.format(
+print('Final smoothed acceptance rate: mean={:.1g}; sd={:.1g}'.format(
     np.mean(final_smthd_acceptance_rate), np.std(final_smthd_acceptance_rate)))
 
 
