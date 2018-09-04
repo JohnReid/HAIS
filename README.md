@@ -15,7 +15,7 @@ in their paper "Hamiltonian Annealed Importance Sampling for partition function 
 
 ### Related implementations
 
-We have used ideas and built upon the code from the following repositories:
+We have used ideas and built upon the code from some of the following repositories:
 
   - BayesFlow TensorFlow 1.4 - 1.6 [contribution](https://www.tensorflow.org/versions/r1.6/api_docs/python/tf/contrib/bayesflow/hmc/ais_chain).
     This is now integrated into [TensorFlow Probability](https://github.com/tensorflow/probability).
@@ -25,6 +25,7 @@ We have used ideas and built upon the code from the following repositories:
   - Tony Wu's Theano/Lasagne [implementation](https://github.com/tonywu95/eval_gen) of the methods described in
     ["On the Quantitative Analysis of Decoder-Based Generative Models"](https://arxiv.org/abs/1611.04273)
   - jiamings's (unfinished?) TensorFlow [implementation](https://github.com/jiamings/ais/) based on Tony Wu's Theano code.
+  - Stefan Webb's HMC AIS in tensorflow [repository](https://github.com/stefanwebb/tensorflow-hmc-ais).
 
 
 ### Tests
