@@ -64,6 +64,7 @@ SEED = 41
 N_ITER = 3000
 N_CHAINS = 30000
 STEPSIZE = .7
+ADAPT_STEPSIZE=False
 
 
 #
@@ -96,12 +97,12 @@ log_target, log_normalizer_true = \
 # Annealed importance sampling
 print('Constructing AIS computation graph')
 starttime = time.time()
-prior = tf.distributions.Normal(loc=tf.zeros(N_CHAINS), scale=tf.ones(N_CHAINS))
+proposal = tf.distributions.Normal(loc=tf.zeros(N_CHAINS), scale=tf.ones(N_CHAINS))
 # model = ais.HAIS(qz=prior, log_likelihood_fn=unnormalized_log_gamma_lpdf)
-model = ais.HAIS(prior=prior, log_target=log_target, stepsize=STEPSIZE, adapt_stepsize=True)
+model = ais.HAIS(proposal=proposal, log_target=log_target, stepsize=STEPSIZE, adapt_stepsize=ADAPT_STEPSIZE)
 #
 # Set up an annealing schedule
-schedule = ais.get_schedule(T=N_ITER + 1, r=4, for_calculating_marginal=False)
+schedule = ais.get_schedule(T=N_ITER, r=4)
 #
 # Set up the computation graph
 logw, z_i, eps, avg_acceptance_rate = model.ais(schedule)
@@ -122,14 +123,12 @@ endtime = time.time()
 np.mean(eps_final)
 np.std(eps_final)
 eps_final.shape
-print('AIS took {:.1g} seconds'.format(endtime - starttime))
-# print('Final step size: {}'.format(final_step_size))
-# print('Final average acceptance rate: {}'.format(final_smthd_acceptance_rate))
-print('Estimated log normalizer: {}'.format(log_normalizer_ais))
-print('True      log normalizer: {}'.format(log_normalizer_true))
-print('Final step sizes: mean={:.1g}; sd={:.1g}'.format(
+print('AIS took {:.1f} seconds'.format(endtime - starttime))
+print('Estimated log normalizer: {:.4f}'.format(log_normalizer_ais))
+print('True      log normalizer: {:.4f}'.format(log_normalizer_true))
+print('Final step sizes: mean={:.3g}; sd={:.3g}'.format(
     np.mean(eps_final), np.std(eps_final)))
-print('Final smoothed acceptance rate: mean={:.1g}; sd={:.1g}'.format(
+print('Final smoothed acceptance rate: mean={:.3f}; sd={:.3f}'.format(
     np.mean(final_smthd_acceptance_rate), np.std(final_smthd_acceptance_rate)))
 
 

@@ -46,20 +46,32 @@
 </div></blockquote>
 <dl class="class">
 <dt id="hais.ais.HAIS">
-<em class="property">class </em><code class="descclassname">hais.ais.</code><code class="descname">HAIS</code><span class="sig-paren">(</span><em>prior</em>, <em>log_target</em>, <em>stepsize=0.5</em>, <em>smthd_acceptance_decay=0.9</em>, <em>adapt_stepsize=False</em>, <em>target_acceptance_rate=0.65</em>, <em>stepsize_dec=0.9</em>, <em>stepsize_inc=1.1111111111111112</em>, <em>stepsize_min=1e-05</em>, <em>stepsize_max=1000.0</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">hais.ais.</code><code class="descname">HAIS</code><span class="sig-paren">(</span><em>proposal=None</em>, <em>log_target=None</em>, <em>prior=None</em>, <em>log_likelihood=None</em>, <em>stepsize=0.5</em>, <em>smthd_acceptance_decay=0.9</em>, <em>adapt_stepsize=False</em>, <em>target_acceptance_rate=0.65</em>, <em>stepsize_dec=0.9</em>, <em>stepsize_inc=1.1111111111111112</em>, <em>stepsize_min=1e-05</em>, <em>stepsize_max=1000.0</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS" title="Permalink to this definition">¶</a></dt>
 <dd><p>An implementation of Hamiltonian Annealed Importance Sampling (HAIS).</p>
 <dl class="method">
 <dt id="hais.ais.HAIS.__init__">
-<code class="descname">__init__</code><span class="sig-paren">(</span><em>prior</em>, <em>log_target</em>, <em>stepsize=0.5</em>, <em>smthd_acceptance_decay=0.9</em>, <em>adapt_stepsize=False</em>, <em>target_acceptance_rate=0.65</em>, <em>stepsize_dec=0.9</em>, <em>stepsize_inc=1.1111111111111112</em>, <em>stepsize_min=1e-05</em>, <em>stepsize_max=1000.0</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.__init__" title="Permalink to this definition">¶</a></dt>
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>proposal=None</em>, <em>log_target=None</em>, <em>prior=None</em>, <em>log_likelihood=None</em>, <em>stepsize=0.5</em>, <em>smthd_acceptance_decay=0.9</em>, <em>adapt_stepsize=False</em>, <em>target_acceptance_rate=0.65</em>, <em>stepsize_dec=0.9</em>, <em>stepsize_inc=1.1111111111111112</em>, <em>stepsize_min=1e-05</em>, <em>stepsize_max=1000.0</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initialise the HAIS class.</p>
+<p>The proposal and target distribution must be specified in one of two ways:</p>
+<blockquote>
+<div><ul class="simple">
+<li><em>either</em> a <cite>proposal</cite> distribution <span class="math notranslate nohighlight">\(q(x)\)</span> and unnormalised <cite>log_target</cite>
+density <span class="math notranslate nohighlight">\(p(x)\)</span> should be supplied. In this case the <cite>i</cite>’th annealed density will be
+<span class="math notranslate nohighlight">\(q(x)^{1-\beta_i}p(x)^{\beta_i}\)</span></li>
+<li><em>or</em> a <cite>prior</cite> distribution <span class="math notranslate nohighlight">\(q(x)\)</span> and normalised <cite>log_likelihood</cite> density <span class="math notranslate nohighlight">\(p(x)\)</span> should
+be supplied. In this case the <cite>i</cite>’th annealed density will be
+<span class="math notranslate nohighlight">\(q(x)p(x)^{\beta_i}\)</span></li>
+</ul>
+</div></blockquote>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>prior</strong> – The prior (or proposal distribution).</li>
-<li><strong>log_target</strong> – Function f(z) that returns a tensor to evaluate <span class="math notranslate nohighlight">\(\log p(z)\)</span> (up to a constant).
-When estimating the marginal likelihood, this function should calculate the likelihood.</li>
+<li><strong>proposal</strong> – The proposal distribution.</li>
+<li><strong>log_target</strong> – Function that returns a tensor evaluating <span class="math notranslate nohighlight">\(\log p(x)\)</span> (up to a constant).</li>
+<li><strong>prior</strong> – The prior distribution.</li>
+<li><strong>log_likelihood</strong> – Function that returns a tensor evaluating :the normalised log likelihood of <span class="math notranslate nohighlight">\(x\)</span>.</li>
 <li><strong>stepsize</strong> – HMC step size.</li>
 <li><strong>smthd_acceptance_decay</strong> – The decay used when smoothing the acceptance rates.</li>
 <li><strong>adapt_stepsize</strong> – If true the algorithm will adapt the step size for each chain to encourage
@@ -83,12 +95,6 @@ Only used when adapting step sizes.</li>
 </dd></dl>
 
 <dl class="method">
-<dt id="hais.ais.HAIS.adapt_step_size">
-<code class="descname">adapt_step_size</code><span class="sig-paren">(</span><em>eps</em>, <em>smoothed_acceptance_rate</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.adapt_step_size" title="Permalink to this definition">¶</a></dt>
-<dd><p>Adapt the step size to adjust the smoothed acceptance rate to a theoretical optimum.</p>
-</dd></dl>
-
-<dl class="method">
 <dt id="hais.ais.HAIS.ais">
 <code class="descname">ais</code><span class="sig-paren">(</span><em>schedule</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.ais" title="Permalink to this definition">¶</a></dt>
 <dd><p>Perform annealed importance sampling.</p>
@@ -96,67 +102,46 @@ Only used when adapting step sizes.</li>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>schedule</strong> – temperature schedule i.e. <span class="math notranslate nohighlight">\(p(z)p(x|z)^t\)</span></td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>schedule</strong> – temperature schedule</td>
 </tr>
 </tbody>
 </table>
 </dd></dl>
 
 <dl class="method">
-<dt id="hais.ais.HAIS.energy_fn">
-<code class="descname">energy_fn</code><span class="sig-paren">(</span><em>z</em>, <em>t</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.energy_fn" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the energy for each sample z at the temperature t. The temperature
-is a pair of temperatures, one for the prior and one for the target.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="hais.ais.HAIS.log_f_i">
-<code class="descname">log_f_i</code><span class="sig-paren">(</span><em>z</em>, <em>t</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.log_f_i" title="Permalink to this definition">¶</a></dt>
-<dd><p>Unnormalized log density for intermediate distribution <span class="math notranslate nohighlight">\(f_i\)</span></p>
-</dd></dl>
-
-<dl class="method">
 <dt id="hais.ais.HAIS.log_normalizer">
 <code class="descname">log_normalizer</code><span class="sig-paren">(</span><em>logw</em>, <em>samples_axis</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.log_normalizer" title="Permalink to this definition">¶</a></dt>
-<dd><p>The log of the mean (axis=0 for samples typically) of exp(log weights)</p>
+<dd><p>The log of the mean (over the <cite>samples_axis</cite>) of <span class="math notranslate nohighlight">\(e^{logw}\)</span></p>
 </dd></dl>
 
 </dd></dl>
 
 <dl class="function">
 <dt id="hais.ais.get_schedule">
-<code class="descclassname">hais.ais.</code><code class="descname">get_schedule</code><span class="sig-paren">(</span><em>T</em>, <em>r=4</em>, <em>for_calculating_marginal=True</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.get_schedule" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">hais.ais.</code><code class="descname">get_schedule</code><span class="sig-paren">(</span><em>T</em>, <em>r=4</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.get_schedule" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate a temperature schedule for annealing.</p>
 <p>Evenly spaced points in <span class="math notranslate nohighlight">\([-r, r]\)</span> are pushed
 through the sigmoid function and affinely transformed to <span class="math notranslate nohighlight">\([0, 1]\)</span>.</p>
 <div class="math notranslate nohighlight">
-\[\begin{split}t_i &amp;= (\frac{2i}{T - 1} - 1) r, \quad i = 0, \dots, T-1 \\
+\[\begin{split}t_i &amp;= (\frac{2i}{T} - 1) r, \quad i = 0, \dots, T \\
 s_i &amp;= \frac{1}{1+e^{-t_i}} \\
-\beta_i &amp;= \frac{s_i - s_0}{s_{T-1} - s_0}\end{split}\]</div>
+\beta_i &amp;= \frac{s_i - s_0}{s_T - s_0}\end{split}\]</div>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>T</strong> – number of annealed densities (temperatures).</li>
+<li><strong>T</strong> – number of annealing transitions (number of temperatures + 1).</li>
 <li><strong>r</strong> – defines the domain of the sigmoid.</li>
-<li><strong>for_calculating_marginal</strong> – If True, the temperatures for the prior
-will all be 1. Otherwise, they will be <span class="math notranslate nohighlight">\(1 - \beta_i\)</span>.</li>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A numpy array with shape <cite>(2, T)</cite>, the first dimension indexes the prior
-and the target, the second dimension indexes the annealed densities.
-Each temperature has 2 components, one for the prior, one for the target.
-The temperatures for the target are defined by the <span class="math notranslate nohighlight">\(\beta_i\)</span> above,
-i.e. <cite>schedule[1, i]</cite> <span class="math notranslate nohighlight">\(= \beta_i\)</span>.
-When calculating the marginal, we always include the prior at temperature 1,
-i.e. <cite>schedule[0, i] = 1</cite> for all <span class="math notranslate nohighlight">\(i\)</span>,
-only the temperature for the target varies (from 0 to 1). This effectively
-makes the target distribution proportional to the posterior.</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A numpy array with shape <cite>(T+1,)</cite> that
+monotonically increases from 0 to 1 (the values are the
+<span class="math notranslate nohighlight">\(\beta_i\)</span>).</p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">2D numpy array</p>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">1-D numpy array</p>
 </td>
 </tr>
 </tbody>

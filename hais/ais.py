@@ -17,7 +17,7 @@ from . import hmc
 TARGET_ACCEPTANCE_RATE = .65
 
 
-def get_schedule(T, r=4, for_calculating_marginal=True):
+def get_schedule(T, r=4):
   """
   Calculate a temperature schedule for annealing.
 
@@ -26,26 +26,18 @@ def get_schedule(T, r=4, for_calculating_marginal=True):
 
   .. math::
 
-    t_i &= (\\frac{2i}{T - 1} - 1) r, \\quad i = 0, \dots, T-1 \\\\
+    t_i &= (\\frac{2i}{T} - 1) r, \\quad i = 0, \dots, T \\\\
     s_i &= \\frac{1}{1+e^{-t_i}} \\\\
-    \\beta_i &= \\frac{s_i - s_0}{s_{T-1} - s_0}
+    \\beta_i &= \\frac{s_i - s_0}{s_T - s_0}
 
   Args:
-    T: number of annealed densities (temperatures).
+    T: number of annealing transitions (number of temperatures + 1).
     r: defines the domain of the sigmoid.
-    for_calculating_marginal: If True, the temperatures for the prior
-      will all be 1. Otherwise, they will be :math:`1 - \\beta_i`.
 
   Returns:
-    2D numpy array: A numpy array with shape `(2, T)`, the first dimension indexes the prior
-    and the target, the second dimension indexes the annealed densities.
-    Each temperature has 2 components, one for the prior, one for the target.
-    The temperatures for the target are defined by the :math:`\\beta_i` above,
-    i.e. `schedule[1, i]` :math:`= \\beta_i`.
-    When calculating the marginal, we always include the prior at temperature 1,
-    i.e. `schedule[0, i] = 1` for all :math:`i`,
-    only the temperature for the target varies (from 0 to 1). This effectively
-    makes the target distribution proportional to the posterior.
+    1-D numpy array: A numpy array with shape `(T+1,)` that
+    monotonically increases from 0 to 1 (the values are the
+    :math:`\\beta_i`).
 
   """
   if T == 1:
@@ -53,12 +45,7 @@ def get_schedule(T, r=4, for_calculating_marginal=True):
   t = np.linspace(-r, r, T)
   s = 1.0 / (1.0 + np.exp(-t))
   beta = (s - np.min(s)) / (np.max(s) - np.min(s))
-  schedule = np.array([1. - beta, beta]).T
-  if for_calculating_marginal:
-    # When calculating the marginal, we always include the prior at temperature (power) 1
-    print('Calculating marginal')
-    schedule[:, 0] = 1.
-  return schedule
+  return beta
 
 
 class HAIS(object):
@@ -67,8 +54,10 @@ class HAIS(object):
   """
 
   def __init__(self,
-               prior,
-               log_target,
+               proposal=None,
+               log_target=None,
+               prior=None,
+               log_likelihood=None,
                stepsize=.5,
                smthd_acceptance_decay=0.9,
                adapt_stepsize = False,
@@ -80,10 +69,21 @@ class HAIS(object):
     """
     Initialise the HAIS class.
 
+    The proposal and target distribution must be specified in one of two ways:
+
+      - *either* a `proposal` distribution :math:`q(x)` and unnormalised `log_target`
+        density :math:`p(x)` should be supplied. In this case the `i`'th annealed density will be
+        :math:`q(x)^{1-\\beta_i}p(x)^{\\beta_i}`
+      - *or* a `prior` distribution :math:`q(x)` and normalised `log_likelihood` density :math:`p(x)` should
+        be supplied. In this case the `i`'th annealed density will be
+        :math:`q(x)p(x)^{\\beta_i}`
+
+
     Args:
-      prior: The prior (or proposal distribution).
-      log_target: Function f(z) that returns a tensor to evaluate :math:`\\log p(z)` (up to a constant).
-        When estimating the marginal likelihood, this function should calculate the likelihood.
+      proposal: The proposal distribution.
+      log_target: Function that returns a tensor evaluating :math:`\\log p(x)` (up to a constant).
+      prior: The prior distribution.
+      log_likelihood: Function that returns a tensor evaluating :the normalised log likelihood of :math:`x`.
       stepsize: HMC step size.
       smthd_acceptance_decay: The decay used when smoothing the acceptance rates.
       adapt_stepsize: If true the algorithm will adapt the step size for each chain to encourage
@@ -100,14 +100,32 @@ class HAIS(object):
       stepsize_max: A hard upper bound on the step size.
         Only used when adapting step sizes.
     """
+    a = None
+    b = 1
+    (a is None) ^ (b is None)
+    #
+    # Check the arguments, either proposal and log_target should be supplied OR prior and log_likelihood
+    # but not both
+    if (proposal is None) == (prior is None):
+      raise ValueError('Exactly one of the proposal and prior arguments should be supplied.')
+    if (proposal is None) != (log_target is None):
+      raise ValueError('Either both of the proposal and log_target arguments should be supplied or neither.')
+    if (prior is None) != (log_likelihood is None):
+      raise ValueError('Either both of the prior and log_likelihood arguments should be supplied or neither.')
     #
     # Model
+    self.proposal = proposal
     self.log_target = log_target
     self.prior = prior
+    self.log_likelihood = log_likelihood
+    if self.proposal is None:
+      self.q = self.prior
+    else:
+      self.q = self.proposal
     #
     # Dimensions
-    self.batch_shape = self.prior.batch_shape
-    self.event_shape = self.prior.event_shape
+    self.batch_shape = self.q.batch_shape
+    self.event_shape = self.q.event_shape
     self.shape = self.batch_shape.concatenate(self.event_shape)
     self.event_axes = list(range(len(self.batch_shape), len(self.shape)))
     #
@@ -122,29 +140,32 @@ class HAIS(object):
     self.stepsize_min = stepsize_min
     self.stepsize_max = stepsize_max
 
-  def log_f_i(self, z, t):
+  def _log_f_i(self, z, beta):
     "Unnormalized log density for intermediate distribution :math:`f_i`"
-    return - self.energy_fn(z, t)
+    return - self._energy_fn(z, beta)
 
-  def energy_fn(self, z, t):
+  def _energy_fn(self, z, beta):
     """
-    Calculate the energy for each sample z at the temperature t. The temperature
+    Calculate the energy for each sample z at the temperature beta. The temperature
     is a pair of temperatures, one for the prior and one for the target.
     """
     assert z.shape == self.shape
-    prior_t = tf.gather(t, 0)
-    prior_energy = prior_t * self.prior.log_prob(z)
+    if self.proposal is None:
+      prior_energy = self.prior.log_prob(z)
+      target_energy = beta * self.log_likelihood(z)
+    else:
+      prior_energy = (1 - beta) * self.proposal.log_prob(z)
+      target_energy = beta * self.log_target(z)
     assert prior_energy.shape == self.batch_shape
-    target_t = tf.gather(t, 1)
-    likelihood_energy = target_t * self.log_target(z)
-    return - prior_energy - likelihood_energy
+    assert target_energy.shape == self.batch_shape
+    return - prior_energy - target_energy
 
   def ais(self, schedule):
     """
     Perform annealed importance sampling.
 
     Args:
-        schedule: temperature schedule i.e. :math:`p(z)p(x|z)^t`
+        schedule: temperature schedule
     """
     #
     # Convert the schedule into consecutive pairs of temperatures and their index
@@ -153,7 +174,7 @@ class HAIS(object):
     # These are the variables that are passed to body() and condition() in the while loop
     i = tf.constant(0)
     logw = tf.zeros(self.batch_shape)
-    z0 = self.prior.sample()
+    z0 = self.q.sample()
     v0 = tf.random_normal(tf.shape(z0))
     if self.adapt_stepsize:
       eps0 = tf.constant(self.stepsize, shape=self.batch_shape, dtype=tf.float32)
@@ -173,8 +194,8 @@ class HAIS(object):
       t1 = tf.gather(schedule_tf, index + 1)  # Second temperature
       #
       # Calculate u at the new temperature and at the old one
-      new_u = self.log_f_i(z, t1)
-      prev_u = self.log_f_i(z, t0)
+      new_u = self._log_f_i(z, t1)
+      prev_u = self._log_f_i(z, t0)
       #
       # Add the difference in u to the weight
       logw = tf.add(logw, new_u - prev_u)
@@ -185,7 +206,7 @@ class HAIS(object):
       accept, znew, vnew = hmc.hmc_move(
           z,
           v,
-          lambda z: self.energy_fn(z, t1),
+          lambda z: self._energy_fn(z, t1),
           event_axes=self.event_axes,
           eps=eps
       )
@@ -196,7 +217,7 @@ class HAIS(object):
       #
       # Adaptive step size
       if self.adapt_stepsize:
-        epsnew = self.adapt_step_size(eps, smoothed_acceptance_rate)
+        epsnew = self._adapt_step_size(eps, smoothed_acceptance_rate)
       else:
         epsnew = eps
       #
@@ -213,7 +234,7 @@ class HAIS(object):
     with tf.control_dependencies([logw, smoothed_acceptance_rate]):
       return logw, z_i, eps_i, smoothed_acceptance_rate
 
-  def adapt_step_size(self, eps, smoothed_acceptance_rate):
+  def _adapt_step_size(self, eps, smoothed_acceptance_rate):
     """Adapt the step size to adjust the smoothed acceptance rate to a theoretical optimum.
     """
     # print('stepsize_inc: {}'.format(stepsize_inc.shape))
@@ -229,6 +250,7 @@ class HAIS(object):
     return epsadapted
 
   def log_normalizer(self, logw, samples_axis):
-    "The log of the mean (axis=0 for samples typically) of exp(log weights)"
+    """The log of the mean (over the `samples_axis`) of :math:`e^{logw}`
+    """
     return tf.reduce_logsumexp(logw, axis=samples_axis) \
         - tf.log(tf.cast(tf.shape(logw)[samples_axis], dtype=tf.float32))

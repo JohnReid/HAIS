@@ -38,10 +38,11 @@ SEED = 41
 # HMC AIS
 N_ITER = 3000
 N_CHAINS = 400
-STEPSIZE = .01
+STEPSIZE = .025
+ADAPT_STEPSIZE=False
 #
 # Model
-BATCH_SIZE = 99
+BATCH_SIZE = 99  # number of distinct x
 M = 36  # x dimensions
 L = 3   # z dimensions
 SIGMA_N = .1
@@ -74,7 +75,7 @@ x.shape
 #
 # True marginal likelihood
 lp_exact = exact.culpepper1a_log_marginal(x, phi, SIGMA_N)
-print('Calculated exact marginal log likelihood(s): mean={:.1g}; sd={:.1g}'.format(
+print('Calculated exact marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
     np.mean(lp_exact), np.std(lp_exact)))
 
 #
@@ -106,10 +107,10 @@ def log_likelihood(z):
 # Annealed importance sampling
 print('Constructing AIS computation graph')
 starttime = time.time()
-model = ais.HAIS(prior=z_prior, log_target=log_likelihood, stepsize=STEPSIZE, adapt_stepsize=True)
+model = ais.HAIS(prior=z_prior, log_likelihood=log_likelihood, stepsize=STEPSIZE, adapt_stepsize=ADAPT_STEPSIZE)
 #
 # Set up an annealing schedule
-schedule = ais.get_schedule(T=N_ITER + 1, r=4, for_calculating_marginal=True)
+schedule = ais.get_schedule(T=N_ITER, r=4)
 #
 # Set up the computation graph
 logw, z_i, eps, smthd_acceptance_rate = model.ais(schedule)
@@ -131,16 +132,16 @@ starttime = time.time()
 log_marginal, logw_ais, z_sampled, eps_final, final_smthd_acceptance_rate = \
     sess.run([log_normalizer, logw, z_i, eps, smthd_acceptance_rate], {x_ph: x})
 endtime = time.time()
-print('AIS took {:.1g} seconds'.format(endtime - starttime))
-print('Estimated marginal log likelihood(s): mean={:.1g}; sd={:.1g}'.format(
+print('AIS took {:.1f} seconds'.format(endtime - starttime))
+print('Estimated marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
     np.mean(log_marginal), np.std(log_marginal)))
-print('True      marginal log likelihood(s): mean={:.1g}; sd={:.1g}'.format(
+print('True      marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
     np.mean(lp_exact), np.std(lp_exact)))
 rho = np.corrcoef(log_marginal, lp_exact)[0, 1]
-print('Correlation between estimates: {:.3g}'.format(rho))
-print('Final step sizes: mean={:.1g}; sd={:.1g}'.format(
+print('Correlation between estimates: {:.3f}'.format(rho))
+print('Final step sizes: mean={:.3g}; sd={:.3g}'.format(
     np.mean(eps_final), np.std(eps_final)))
-print('Final smoothed acceptance rate: mean={:.1g}; sd={:.1g}'.format(
+print('Final smoothed acceptance rate: mean={:.3f}; sd={:.3f}'.format(
     np.mean(final_smthd_acceptance_rate), np.std(final_smthd_acceptance_rate)))
 
 
