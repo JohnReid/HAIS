@@ -78,9 +78,7 @@ class HAIS(object):
                stepsize_min = 1e-5,
                stepsize_max = 1e3):
     """
-    Example use case:
-    :math:`\\log p(x|z) = \\int \\log p(x|z,\\theta) + \\log p(z) dz`
-    :math:`p(x|z, theta) -> likelihood function p(z) -> prior`
+    Initialise the HAIS class.
 
     Args:
       prior: The prior (or proposal distribution).
