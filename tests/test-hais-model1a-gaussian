@@ -74,7 +74,7 @@ x.shape
 #
 # True marginal likelihood
 lp_exact = exact.culpepper1a_log_marginal(x, phi, SIGMA_N)
-print('Calculated exact marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
+print('Calculated exact marginal log likelihood(s): mean={:.1g}; sd={:.1g}'.format(
     np.mean(lp_exact), np.std(lp_exact)))
 
 #
@@ -117,7 +117,7 @@ logw, z_i, eps, smthd_acceptance_rate = model.ais(schedule)
 # Calculate the log normalizer (aka log marginal), remember batches are in dimension 0, chains in dimension 1
 log_normalizer = model.log_normalizer(logw, samples_axis=1)
 endtime = time.time()
-print('Constructing graph took {:.1f} seconds'.format(endtime - starttime))
+print('Constructing graph took {:.1g} seconds'.format(endtime - starttime))
 #
 # Construct and initialise the session
 sess = tf.Session()
@@ -131,10 +131,10 @@ starttime = time.time()
 log_marginal, logw_ais, z_sampled, eps_final, final_smthd_acceptance_rate = \
     sess.run([log_normalizer, logw, z_i, eps, smthd_acceptance_rate], {x_ph: x})
 endtime = time.time()
-print('AIS took {:.1f} seconds'.format(endtime - starttime))
-print('Estimated marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
+print('AIS took {:.1g} seconds'.format(endtime - starttime))
+print('Estimated marginal log likelihood(s): mean={:.1g}; sd={:.1g}'.format(
     np.mean(log_marginal), np.std(log_marginal)))
-print('True      marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
+print('True      marginal log likelihood(s): mean={:.1g}; sd={:.1g}'.format(
     np.mean(lp_exact), np.std(lp_exact)))
 rho = np.corrcoef(log_marginal, lp_exact)[0, 1]
 print('Correlation between estimates: {:.3g}'.format(rho))

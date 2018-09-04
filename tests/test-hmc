@@ -68,15 +68,15 @@ print('Running sampler')
 starttime = time.time()
 samples_hmc, accept_hmc = sess.run((samples_final.stack(), smoothed_accept_rate_final))
 endtime = time.time()
-print('Sampler took {:.1f} seconds'.format(endtime - starttime))
+print('Sampler took {:.1g} seconds'.format(endtime - starttime))
 samples_hmc.shape
 burned_in = samples_hmc[int(NITER / 2):]
 burned_in.shape
 burned_in.size / 1e6
-print('Mean of (burned in) samples: {:.3f}'.format(np.mean(burned_in)))
-print('Desired mean               : {:.3f}'.format(MU))
-print('Standard deviation of (burned in) samples: {:.3f}'.format(np.std(burned_in)))
-print('Desired standard deviation               : {:.3f}'.format(SIGMA))
+print('Mean of (burned in) samples: {:.3g}'.format(np.mean(burned_in)))
+print('Desired mean               : {:.3g}'.format(MU))
+print('Standard deviation of (burned in) samples: {:.3g}'.format(np.std(burned_in)))
+print('Desired standard deviation               : {:.3g}'.format(SIGMA))
 #
 # Drop samples so we don't have too many per chain
 MAX_SAMPLES_PER_CHAIN = 47

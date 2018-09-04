@@ -37,9 +37,19 @@
 <h1>HAIS<a class="headerlink" href="#hais" title="Permalink to this headline">¶</a></h1>
 <p>This is a tensorflow implementation of Hamiltonian Annealed Importance Sampling
 (HAIS). HAIS is a technique to estimate partition functions (normalising
-constants of probability densities) and/or sample from such densities. HAIS was
+constants of probability densities) and sample from such densities. HAIS was
 proposed by Sohl-Dickstein and Culpepper (2011).</p>
-<p>Developed by <a class="reference external" href="https://twitter.com/__Reidy__">&#64;__Reidy__</a> and <a class="reference external" href="https://twitter.com/bilginhalil">&#64;bilginhalil</a>
+<p>Annealed Importance Sampling (AIS) is a technique to sample from unnormalised
+complex densities with isolated modes that also can be used to estimate
+normalising constants. It combines importance sampling with Markov chain
+sampling methods. The canonical reference is “Annealed Importance Sampling”
+Radford M. Neal (Technical Report No. 9805, Department of Statistics,
+University of Toronto, 1998)</p>
+<p>HAIS is a version of AIS that uses Hamiltonian Monte Carlo (as opposed to
+Metropolis-Hastings or some other sampler) to move between the annealed
+distributions.</p>
+<p>Developed by <a class="reference external" href="https://twitter.com/__Reidy__">&#64;__Reidy__</a> and
+<a class="reference external" href="https://twitter.com/bilginhalil">&#64;bilginhalil</a>
 and derived from <a class="reference external" href="https://github.com/jiamings/ais/">https://github.com/jiamings/ais/</a>.</p>
 <div class="toctree-wrapper compound">
 <p class="caption"><span class="caption-text">Contents:</span></p>
