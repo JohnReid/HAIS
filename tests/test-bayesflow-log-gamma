@@ -1,0 +1,119 @@
+#!/usr/bin/env python
+"""
+Estimate the normalizing constant of a log-gamma distribution using
+TensorFlow's BayesFlow AIS implementation.
+"""
+
+
+import time
+#
+# Plotting
+import matplotlib.pyplot as plt
+import seaborn as sns
+#
+# Scientific
+import numpy as np
+import tensorflow as tf
+from tensorflow.contrib.bayesflow import hmc
+from hais.examples import log_gamma_unnormalised_lpdf, log_gamma_exact_log_normaliser
+
+
+#
+# Jupyter magic
+#
+# %load_ext autoreload
+# %autoreload 2
+
+
+#
+# Check tensorflow version
+if tuple(map(int, tf.__version__.split('.'))) > (1, 6, 0):
+  raise NotImplementedError(
+      'tensorflow.contrib.bayesflow.hmc.ais_chain is not implemented in versions of TensorFlow beyond 1.6.0')
+
+
+#
+# Constants
+#
+# normal parameters
+MU = 1.
+SIGMA = .5
+#
+# log-gamma parameters
+ALPHA = 2.
+BETA = 3.
+#
+# RNG seed
+SEED = 41
+#
+# HMC AIS
+N_ITER = 30
+N_CHAINS = 30000
+STEPSIZE = .7
+
+
+#
+# Seed RNGs
+print('Seeding RNGs')
+np.random.seed(SEED)
+tf.set_random_seed(SEED)
+
+
+#
+def log_target(x):
+  return log_gamma_unnormalised_lpdf(x, ALPHA, BETA)
+# Calculate the true log normalizer
+log_normalizer_true = log_gamma_exact_log_normaliser(ALPHA, BETA)
+
+
+#
+# Annealed importance sampling
+print('Constructing AIS computation graph')
+starttime = time.time()
+proposal = tf.distributions.Normal(loc=tf.zeros([N_CHAINS]), scale=tf.ones([N_CHAINS]))
+initial_x = proposal.sample()
+logw, samples, acceptance_probs = hmc.ais_chain(
+    n_iterations=N_ITER, step_size=STEPSIZE, n_leapfrog_steps=1, initial_x=initial_x,
+    target_log_prob_fn=log_target, proposal_log_prob_fn=proposal.log_prob)
+log_normalizer = tf.reduce_logsumexp(logw) - np.log(N_CHAINS)
+endtime = time.time()
+print('Constructing graph took {:.1f} seconds'.format(endtime - starttime))
+#
+# Construct and initialise the session
+sess = tf.Session()
+sess.run(tf.global_variables_initializer())
+#
+# Run AIS
+print('Running AIS')
+starttime = time.time()
+log_normalizer_ais, log_w_ais, z_sampled, acceptance_probs_ais = \
+    sess.run([log_normalizer, logw, samples, acceptance_probs])
+endtime = time.time()
+print('AIS took {:.1f} seconds'.format(endtime - starttime))
+print('Estimated log normalizer: {:.4f}'.format(log_normalizer_ais))
+print('True      log normalizer: {:.4f}'.format(log_normalizer_true))
+print('Acceptance probabilities: mean={:.3f}; sd={:.3f}'.format(
+    np.mean(acceptance_probs_ais), np.std(acceptance_probs_ais)))
+
+
+#
+# Plot the output
+print('Plotting log normalizer')
+fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
+# ax.scatter(log_normalizer_ais, log_normalizer_true)
+ax.set_xlabel('x')
+ax.set_ylabel('target')
+ax.set_title('Samples')
+z_sampled.shape
+sns.distplot(z_sampled, ax=ax)
+xmin, xmax = ax.get_xbound()
+target_range = np.linspace(xmin, xmax, num=300)
+target_range.shape
+target = sess.run(tf.exp(log_target(target_range) - log_normalizer_true))
+ax.plot(target_range, target)
+#
+# Acceptance rate
+sns.distplot(acceptance_probs_ais.flatten(), ax=ax_accept)
+ax_accept.set_title('acceptance probabilities')
+#
+fig.savefig('bayesflow-log-gamma.pdf')

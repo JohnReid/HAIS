@@ -1,0 +1,152 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Module hais.examples &#8212; HAIS 0.1.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Module hais.hmc" href="hmc.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-hais.examples">
+<span id="module-hais-examples"></span><h1>Module hais.examples<a class="headerlink" href="#module-hais.examples" title="Permalink to this headline">¶</a></h1>
+<p>Unnormalised targets and exact calculations for some example problems.</p>
+<blockquote>
+<div><ul class="simple">
+<li>An unnormalised log-Gamma distribution</li>
+<li>Model 1a from Sohl-Dickstein and Culpepper</li>
+</ul>
+</div></blockquote>
+<dl class="function">
+<dt id="hais.examples.culpepper1a_log_marginal">
+<code class="descclassname">hais.examples.</code><code class="descname">culpepper1a_log_marginal</code><span class="sig-paren">(</span><em>x</em>, <em>phi</em>, <em>sigma_n</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.culpepper1a_log_marginal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the exact log marginal likelihood of the <cite>x</cite> given
+<cite>phi</cite> and <cite>sigma_n</cite> in model 1a (Gaussian prior) from
+Sohl-Dickstein and Culpepper (2011).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.examples.culpepper1a_log_marginal_overcomplicated">
+<code class="descclassname">hais.examples.</code><code class="descname">culpepper1a_log_marginal_overcomplicated</code><span class="sig-paren">(</span><em>x</em>, <em>phi</em>, <em>sigma_n</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.culpepper1a_log_marginal_overcomplicated" title="Permalink to this definition">¶</a></dt>
+<dd><p>An over-complicated and probably incorrect method to calculate
+the exact marginal likelihood for model 1a (Gaussian prior) from Sohl-Dickstein and Culpepper.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.examples.log_gamma_exact_log_normaliser">
+<code class="descclassname">hais.examples.</code><code class="descname">log_gamma_exact_log_normaliser</code><span class="sig-paren">(</span><em>alpha</em>, <em>beta</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.log_gamma_exact_log_normaliser" title="Permalink to this definition">¶</a></dt>
+<dd><p>The exact log normalizer is:</p>
+<div class="math notranslate nohighlight">
+\[\log \Gamma(\alpha) - \alpha \log \beta\]</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="hais.examples.log_gamma_unnormalised_lpdf">
+<code class="descclassname">hais.examples.</code><code class="descname">log_gamma_unnormalised_lpdf</code><span class="sig-paren">(</span><em>x</em>, <em>alpha</em>, <em>beta</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.log_gamma_unnormalised_lpdf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unnormalized log probability density function of the log-gamma(ALPHA, BETA) distribution.</p>
+<p>The probability density function for a gamma distribution is:</p>
+<div class="math notranslate nohighlight">
+\[f(x; \alpha, \beta) =
+  \frac{\beta^\alpha}{\Gamma(\alpha)}
+  x^{\alpha-1}
+  e^{- \beta x}\]</div>
+<p>for all <span class="math notranslate nohighlight">\(x &gt; 0\)</span> and any given shape <span class="math notranslate nohighlight">\(\alpha &gt; 0\)</span> and rate <span class="math notranslate nohighlight">\(\beta &gt; 0\)</span>. Given a change
+of variables <span class="math notranslate nohighlight">\(y = \log(x)\)</span> we have the density for a log-gamma distribution:</p>
+<div class="math notranslate nohighlight">
+\[f(y; \alpha, \beta) =
+  \frac{\beta^\alpha}{\Gamma(\alpha)}
+  e^{\alpha y - \beta e^y}\]</div>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">HAIS</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="ais.html">Module hais.ais</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hmc.html">Module hais.hmc</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Module hais.examples</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="hmc.html" title="previous chapter">Module hais.hmc</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, John Reid and Halil Bilgin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.8</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+      |
+      <a href="_sources/examples.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -32,6 +32,7 @@ and derived from https://github.com/jiamings/ais/.
 
    ais.rst
    hmc.rst
+   examples.rst
 
 
 Indices and tables

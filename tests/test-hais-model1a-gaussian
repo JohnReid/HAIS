@@ -13,7 +13,7 @@ When the latent dimensionality, L, is around 5, there is still some considerable
 
 import tensorflow as tf
 import numpy as np
-from hais import ais, exact
+from hais import ais, examples
 import matplotlib.pyplot as plt
 from matplotlib import lines
 import seaborn as sns
@@ -74,7 +74,7 @@ x.shape
 
 #
 # True marginal likelihood
-lp_exact = exact.culpepper1a_log_marginal(x, phi, SIGMA_N)
+lp_exact = examples.culpepper1a_log_marginal(x, phi, SIGMA_N)
 print('Calculated exact marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
     np.mean(lp_exact), np.std(lp_exact)))
 

@@ -1,13 +1,56 @@
 """
-Calculations of exact log marginal likelihoods for certain models.
+Unnormalised targets and exact calculations for some example problems.
+
+  - An unnormalised log-Gamma distribution
+  - Model 1a from Sohl-Dickstein and Culpepper
+
 """
 
 
 import numpy as np
-from scipy import linalg as la
+import scipy.linalg as la
+import scipy.special as sp
 import scipy.stats as st
+import tensorflow as tf
+
 
 LOG_2_PI = np.log(2. * np.pi)
+
+
+def log_gamma_unnormalised_lpdf(x, alpha, beta):
+  """
+  Unnormalized log probability density function of the log-gamma(ALPHA, BETA) distribution.
+
+  The probability density function for a gamma distribution is:
+
+  .. math::
+
+      f(x; \\alpha, \\beta) =
+        \\frac{\\beta^\\alpha}{\Gamma(\\alpha)}
+        x^{\\alpha-1}
+        e^{- \\beta x}
+
+  for all :math:`x > 0` and any given shape :math:`\\alpha > 0` and rate :math:`\\beta > 0`. Given a change
+  of variables :math:`y = \\log(x)` we have the density for a log-gamma distribution:
+
+  .. math::
+
+      f(y; \\alpha, \\beta) =
+        \\frac{\\beta^\\alpha}{\Gamma(\\alpha)}
+        e^{\\alpha y - \\beta e^y}
+
+  """
+  return alpha * x - beta * tf.exp(x)
+
+
+def log_gamma_exact_log_normaliser(alpha, beta):
+  """The exact log normalizer is:
+
+  .. math::
+
+    \\log \\Gamma(\\alpha) - \\alpha \\log \\beta
+  """
+  return sp.gammaln(alpha) - alpha * np.log(beta)
 
 
 def culpepper1a_log_marginal(x, phi, sigma_n):
@@ -27,7 +70,8 @@ def culpepper1a_log_marginal(x, phi, sigma_n):
 
 
 def culpepper1a_log_marginal_overcomplicated(x, phi, sigma_n):
-  """Model 1a (Gaussian prior) from Sohl-Dickstein and Culpepper."""
+  """An over-complicated and probably incorrect method to calculate
+  the exact marginal likelihood for model 1a (Gaussian prior) from Sohl-Dickstein and Culpepper."""
   raise NotImplementedError('This is an overcomplicated implementation that does not work')
   M, L = phi.shape
   sigma_n2 = sigma_n**2
