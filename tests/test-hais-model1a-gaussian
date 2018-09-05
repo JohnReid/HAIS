@@ -17,7 +17,6 @@ from hais import ais, examples
 import matplotlib.pyplot as plt
 from matplotlib import lines
 import seaborn as sns
-import scipy.stats as st
 import time
 tfd = tf.contrib.distributions
 
@@ -39,7 +38,7 @@ SEED = 41
 N_ITER = 3000
 N_CHAINS = 400
 STEPSIZE = .025
-ADAPT_STEPSIZE=False
+ADAPT_STEPSIZE = False
 #
 # Model
 BATCH_SIZE = 99  # number of distinct x
@@ -55,59 +54,27 @@ tf.set_random_seed(SEED)
 
 
 #
-# Sample model
+# Model
 print('Sampling model')
-#
-# Sample phi
-phi = st.norm.rvs(size=(M, L)).astype(dtype=np.float32)
-#
-# Sample z
-z = st.norm.rvs(size=(BATCH_SIZE, L)).astype(dtype=np.float32)
-z.shape
-#
-# Sample x
-x_loc = (phi@z.T).T
-x_loc.shape
-px = st.norm(loc=x_loc, scale=SIGMA_N)
-x = px.rvs(size=(BATCH_SIZE, M))
-x.shape
+generative = examples.Culpepper1aGaussian(M, L, BATCH_SIZE, SIGMA_N)
+phi, z, x_loc, px, x = generative.sample()
+z_prior = generative.prior(N_CHAINS)
+ll_fn = generative.log_likelihood_fn(tf.constant(
+    x, dtype=tf.float32, name='x'), tf.constant(phi, dtype=tf.float32, name='phi'), N_CHAINS)
+
 
 #
-# True marginal likelihood
-lp_exact = examples.culpepper1a_log_marginal(x, phi, SIGMA_N)
+# Exact marginal likelihood
+lp_exact = generative.log_marginal(x, phi)
 print('Calculated exact marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
     np.mean(lp_exact), np.std(lp_exact)))
-
-#
-# Model
-prior_loc = tf.zeros([BATCH_SIZE, N_CHAINS, L])
-z_prior = tfd.MultivariateNormalDiag(loc=prior_loc)
-tf_phi = tf.constant(phi)
-x_ph = tf.placeholder(tf.float32, [BATCH_SIZE, M], name='x')
-
-
-def log_likelihood(z):
-  "The log pdf of the conditional distribution of x given z."
-  #
-  assert (BATCH_SIZE, N_CHAINS, L) == z.shape
-  assert (M, L) == tf_phi.shape
-  assert (BATCH_SIZE, M) == x_ph.shape
-  loc = tf.squeeze(
-      tf.matmul(
-          tf.tile(tf.expand_dims(tf.expand_dims(tf_phi, axis=0), axis=0), [BATCH_SIZE, N_CHAINS, 1, 1]),
-          tf.expand_dims(z, axis=-1)),
-      axis=-1)
-  assert (BATCH_SIZE, N_CHAINS, M) == loc.shape
-  x_given_z = tfd.MultivariateNormalDiag(loc=tf.cast(loc, tf.float32), scale_identity_multiplier=SIGMA_N)
-  return x_given_z.log_prob(
-      tf.tile(tf.expand_dims(x_ph, axis=1), [1, N_CHAINS, 1]), name='log_likelihood')
 
 
 #
 # Annealed importance sampling
 print('Constructing AIS computation graph')
 starttime = time.time()
-model = ais.HAIS(prior=z_prior, log_likelihood=log_likelihood, stepsize=STEPSIZE, adapt_stepsize=ADAPT_STEPSIZE)
+model = ais.HAIS(prior=z_prior, log_likelihood=ll_fn, stepsize=STEPSIZE, adapt_stepsize=ADAPT_STEPSIZE)
 #
 # Set up an annealing schedule
 schedule = ais.get_schedule(T=N_ITER, r=4)
@@ -130,7 +97,7 @@ sess.run(tf.global_variables_initializer())
 print('Running AIS')
 starttime = time.time()
 log_marginal, logw_ais, z_sampled, eps_final, final_smthd_acceptance_rate = \
-    sess.run([log_normalizer, logw, z_i, eps, smthd_acceptance_rate], {x_ph: x})
+    sess.run([log_normalizer, logw, z_i, eps, smthd_acceptance_rate])
 endtime = time.time()
 print('AIS took {:.1f} seconds'.format(endtime - starttime))
 print('Estimated marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
