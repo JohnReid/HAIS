@@ -55,17 +55,13 @@ tf.set_random_seed(SEED)
 
 #
 # Model
-print('Sampling model')
-generative = examples.Culpepper1aGaussian(M, L, BATCH_SIZE, SIGMA_N)
-phi, z, x_loc, px, x = generative.sample()
-z_prior = generative.prior(N_CHAINS)
-ll_fn = generative.log_likelihood_fn(tf.constant(
-    x, dtype=tf.float32, name='x'), tf.constant(phi, dtype=tf.float32, name='phi'), N_CHAINS)
+print('Constructing/sampling model')
+generative = examples.Culpepper1aGaussian(M, L, SIGMA_N, BATCH_SIZE, N_CHAINS)
 
 
 #
 # Exact marginal likelihood
-lp_exact = generative.log_marginal(x, phi)
+lp_exact = generative.log_marginal()
 print('Calculated exact marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
     np.mean(lp_exact), np.std(lp_exact)))
 
@@ -74,16 +70,16 @@ print('Calculated exact marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.form
 # Annealed importance sampling
 print('Constructing AIS computation graph')
 starttime = time.time()
-model = ais.HAIS(prior=z_prior, log_likelihood=ll_fn, stepsize=STEPSIZE, adapt_stepsize=ADAPT_STEPSIZE)
+sampler = ais.HAIS(prior=generative.prior, log_likelihood=generative.log_likelihood, stepsize=STEPSIZE, adapt_stepsize=ADAPT_STEPSIZE)
 #
 # Set up an annealing schedule
 schedule = ais.get_schedule(T=N_ITER, r=4)
 #
 # Set up the computation graph
-logw, z_i, eps, smthd_acceptance_rate = model.ais(schedule)
+logw, z_i, eps, smthd_acceptance_rate = sampler.ais(schedule)
 #
 # Calculate the log normalizer (aka log marginal), remember batches are in dimension 0, chains in dimension 1
-log_normalizer = model.log_normalizer(logw, samples_axis=1)
+log_normalizer = sampler.log_normalizer(logw, samples_axis=1)
 endtime = time.time()
 print('Constructing graph took {:.1g} seconds'.format(endtime - starttime))
 #
@@ -115,7 +111,7 @@ print('Final smoothed acceptance rate: mean={:.3f}; sd={:.3f}'.format(
 #
 # Plot the output
 print('Plotting marginal log likelihoods')
-if model.adapt_stepsize:
+if sampler.adapt_stepsize:
   fig, (ax, ax_accept, ax_stepsize) = plt.subplots(3, 1, figsize=(8, 12))
 else:
   fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
@@ -131,13 +127,13 @@ ax.add_line(lines.Line2D([lower, upper], [lower, upper], linestyle='dashed', col
 #
 # Acceptance rate
 sns.distplot(final_smthd_acceptance_rate.flatten(), ax=ax_accept)
-ax_accept.axvline(x=model.target_acceptance_rate, linestyle='dashed', color='k', alpha=.3)
+ax_accept.axvline(x=sampler.target_acceptance_rate, linestyle='dashed', color='k', alpha=.3)
 ax_accept.set_title('average acceptance rates (per batch per chain)')
 #
 # Step sizes
-if model.adapt_stepsize:
+if sampler.adapt_stepsize:
   sns.distplot(eps_final.flatten(), ax=ax_stepsize)
-  ax_stepsize.axvline(x=model.stepsize, linestyle='dashed', color='k', alpha=.3)
+  ax_stepsize.axvline(x=sampler.stepsize, linestyle='dashed', color='k', alpha=.3)
   ax_stepsize.set_title('Step sizes (per batch per chain)')
 #
 fig.savefig('hais-model1a-gaussian.pdf')

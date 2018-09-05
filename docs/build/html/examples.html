@@ -44,39 +44,35 @@
 </div></blockquote>
 <dl class="class">
 <dt id="hais.examples.Culpepper1aGaussian">
-<em class="property">class </em><code class="descclassname">hais.examples.</code><code class="descname">Culpepper1aGaussian</code><span class="sig-paren">(</span><em>M</em>, <em>L</em>, <em>batch_size</em>, <em>sigma_n</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.Culpepper1aGaussian" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">hais.examples.</code><code class="descname">Culpepper1aGaussian</code><span class="sig-paren">(</span><em>M</em>, <em>L</em>, <em>sigma_n</em>, <em>batch_size</em>, <em>n_chains</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.Culpepper1aGaussian" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implementations of likelihood, sampling and exact marginal
 for model1a (with Gaussian prior) from Sohl-Dickstein and
 Culpepper.</p>
+<p>We name the latent variable ‘z’ in place of ‘a’</p>
+<p>The code is set up to estimate the log marginal of several batches (different <cite>x</cite>) concurrently.</p>
 <dl class="method">
 <dt id="hais.examples.Culpepper1aGaussian.__init__">
-<code class="descname">__init__</code><span class="sig-paren">(</span><em>M</em>, <em>L</em>, <em>batch_size</em>, <em>sigma_n</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.Culpepper1aGaussian.__init__" title="Permalink to this definition">¶</a></dt>
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>M</em>, <em>L</em>, <em>sigma_n</em>, <em>batch_size</em>, <em>n_chains</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.Culpepper1aGaussian.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initialise the model with the parameters.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="hais.examples.Culpepper1aGaussian.log_likelihood_fn">
-<code class="descname">log_likelihood_fn</code><span class="sig-paren">(</span><em>x_ph</em>, <em>tf_phi</em>, <em>n_chains</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.Culpepper1aGaussian.log_likelihood_fn" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a function to calculate the log pdf of the conditional distribution of x given z.</p>
+<dt id="hais.examples.Culpepper1aGaussian.log_likelihood">
+<code class="descname">log_likelihood</code><span class="sig-paren">(</span><em>z</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.Culpepper1aGaussian.log_likelihood" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the log pdf of the conditional distribution of x given z.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="hais.examples.Culpepper1aGaussian.log_marginal">
-<code class="descname">log_marginal</code><span class="sig-paren">(</span><em>x</em>, <em>phi</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.Culpepper1aGaussian.log_marginal" title="Permalink to this definition">¶</a></dt>
+<code class="descname">log_marginal</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.Culpepper1aGaussian.log_marginal" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the exact log marginal likelihood of the <cite>x</cite> given
 <cite>phi</cite> and <cite>sigma_n</cite>.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="hais.examples.Culpepper1aGaussian.prior">
-<code class="descname">prior</code><span class="sig-paren">(</span><em>n_chains</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.Culpepper1aGaussian.prior" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a prior distribution for the model.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="hais.examples.Culpepper1aGaussian.sample">
-<code class="descname">sample</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.Culpepper1aGaussian.sample" title="Permalink to this definition">¶</a></dt>
-<dd><p>Sample from model.</p>
+<dt id="hais.examples.Culpepper1aGaussian.log_posterior">
+<code class="descname">log_posterior</code><span class="sig-paren">(</span><em>z</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.examples.Culpepper1aGaussian.log_posterior" title="Permalink to this definition">¶</a></dt>
+<dd><p>The unnormalised log posterior.</p>
 </dd></dl>
 
 </dd></dl>

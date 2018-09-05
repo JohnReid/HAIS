@@ -57,68 +57,76 @@ def log_gamma_exact_log_normaliser(alpha, beta):
 class Culpepper1aGaussian(object):
   """Implementations of likelihood, sampling and exact marginal
   for model1a (with Gaussian prior) from Sohl-Dickstein and
-  Culpepper."""
+  Culpepper.
 
-  def __init__(self, M, L, batch_size, sigma_n):
+  We name the latent variable 'z' in place of 'a'
+
+  The code is set up to estimate the log marginal of several batches (different `x`) concurrently.
+  """
+
+  def __init__(self, M, L, sigma_n, batch_size, n_chains):
     """Initialise the model with the parameters."""
+    #
+    # Set parameters
     self.M = M
     self.L = L
-    self.batch_size = batch_size
     self.sigma_n = sigma_n
-
-
-  def sample(self):
-    """Sample from model."""
+    self.batch_size = batch_size
+    self.n_chains = n_chains
     #
     # Sample phi
-    phi = st.norm.rvs(size=(self.M, self.L)).astype(dtype=np.float32)
+    self.phi = st.norm.rvs(size=(self.M, self.L)).astype(dtype=np.float32)
     #
     # Sample z
-    z = st.norm.rvs(size=(self.batch_size, self.L)).astype(dtype=np.float32)
+    self.z = st.norm.rvs(size=(self.batch_size, self.L)).astype(dtype=np.float32)
     #
     # Sample x
-    x_loc = (phi@z.T).T
-    px = st.norm(loc=x_loc, scale=self.sigma_n)
-    x = px.rvs(size=(self.batch_size, self.M))
+    self.x_loc = (self.phi @ self.z.T).T
+    self.px = st.norm(loc=self.x_loc, scale=self.sigma_n)
+    self.x = self.px.rvs(size=(self.batch_size, self.M))
     #
-    return phi, z, x_loc, px, x
-
-
-  def prior(self, n_chains):
-    """Returns a prior distribution for the model."""
-    return tfd.MultivariateNormalDiag(loc=tf.zeros([self.batch_size, n_chains, self.L]))
-
-
-  def log_likelihood_fn(self, x_ph, tf_phi, n_chains):
-    "Returns a function to calculate the log pdf of the conditional distribution of x given z."
+    # TF constants
+    self.x_tf = tf.constant(self.x, dtype=tf.float32)
+    self.phi_tf = tf.constant(self.phi, dtype=tf.float32)
     #
-    def ll_fn(z):
-      assert (self.batch_size, n_chains, self.L) == z.shape
-      assert (self.M, self.L) == tf_phi.shape
-      assert (self.batch_size, self.M) == x_ph.shape
-      loc = tf.squeeze(
-          tf.matmul(
-              tf.tile(tf.expand_dims(tf.expand_dims(tf_phi, axis=0), axis=0), [self.batch_size, n_chains, 1, 1]),
-              tf.expand_dims(z, axis=-1)),
-          axis=-1)
-      assert (self.batch_size, n_chains, self.M) == loc.shape
-      x_given_z = tfd.MultivariateNormalDiag(loc=tf.cast(loc, tf.float32), scale_identity_multiplier=self.sigma_n)
-      return x_given_z.log_prob(
-          tf.tile(tf.expand_dims(x_ph, axis=1), [1, n_chains, 1]), name='log_likelihood')
+    # TF prior
+    self.prior = tfd.MultivariateNormalDiag(loc=tf.zeros([self.batch_size, self.n_chains, self.L]))
+
+  def log_likelihood(self, z):
+    "Calculates the log pdf of the conditional distribution of x given z."
     #
-    return ll_fn
+    assert (self.batch_size, self.n_chains, self.L) == z.shape
+    assert (self.M, self.L) == self.phi.shape
+    assert (self.batch_size, self.M) == self.x.shape
+    loc = tf.squeeze(
+        tf.matmul(
+            tf.tile(
+                tf.expand_dims(tf.expand_dims(self.phi_tf, axis=0), axis=0),
+                [self.batch_size, self.n_chains, 1, 1]),
+            tf.expand_dims(z, axis=-1)),
+        axis=-1)
+    assert (self.batch_size, self.n_chains, self.M) == loc.shape
+    x_given_z = tfd.MultivariateNormalDiag(loc=tf.cast(loc, tf.float32), scale_identity_multiplier=self.sigma_n)
+    return x_given_z.log_prob(
+        tf.tile(tf.expand_dims(self.x_tf, axis=1), [1, self.n_chains, 1]), name='log_likelihood')
 
+  def log_posterior(self, z):
+    """The unnormalised log posterior."""
+    log_prior = self.prior.log_prob(z)
+    log_likelihood = self.log_likelihood(z)
+    assert log_prior.shape == log_likelihood.shape
+    return log_prior + log_likelihood
 
-  def log_marginal(self, x, phi):
+  def log_marginal(self):
     """Calculate the exact log marginal likelihood of the `x` given
     `phi` and `sigma_n`."""
     #
     # Predictive covariance of x is sum of covariance of phi a and covariance of x|a
-    x_Sigma = phi@phi.T + np.diag(self.sigma_n**2 * np.ones(self.M))
+    x_Sigma = self.phi @ self.phi.T + np.diag(self.sigma_n**2 * np.ones(self.M))
     #
     # Predictive mean is 0 by symmetry
     # so given that x is distributed as a MVN, the exact marginal is
-    lp_exact = st.multivariate_normal.logpdf(x, cov=x_Sigma)
+    lp_exact = st.multivariate_normal.logpdf(self.x, cov=x_Sigma)
     #
     return lp_exact
 
