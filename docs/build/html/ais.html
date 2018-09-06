@@ -46,11 +46,11 @@
 </div></blockquote>
 <dl class="class">
 <dt id="hais.ais.HAIS">
-<em class="property">class </em><code class="descclassname">hais.ais.</code><code class="descname">HAIS</code><span class="sig-paren">(</span><em>proposal=None</em>, <em>log_target=None</em>, <em>prior=None</em>, <em>log_likelihood=None</em>, <em>stepsize=0.5</em>, <em>smthd_acceptance_decay=0.9</em>, <em>adapt_stepsize=False</em>, <em>target_acceptance_rate=0.65</em>, <em>stepsize_dec=0.9</em>, <em>stepsize_inc=1.1111111111111112</em>, <em>stepsize_min=1e-05</em>, <em>stepsize_max=1000.0</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">hais.ais.</code><code class="descname">HAIS</code><span class="sig-paren">(</span><em>proposal=None</em>, <em>log_target=None</em>, <em>prior=None</em>, <em>log_likelihood=None</em>, <em>stepsize=0.5</em>, <em>smthd_acceptance_decay=0.9</em>, <em>adapt_stepsize=False</em>, <em>target_acceptance_rate=0.65</em>, <em>stepsize_dec=0.9</em>, <em>stepsize_inc=1.1</em>, <em>stepsize_min=1e-05</em>, <em>stepsize_max=1000.0</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS" title="Permalink to this definition">¶</a></dt>
 <dd><p>An implementation of Hamiltonian Annealed Importance Sampling (HAIS).</p>
 <dl class="method">
 <dt id="hais.ais.HAIS.__init__">
-<code class="descname">__init__</code><span class="sig-paren">(</span><em>proposal=None</em>, <em>log_target=None</em>, <em>prior=None</em>, <em>log_likelihood=None</em>, <em>stepsize=0.5</em>, <em>smthd_acceptance_decay=0.9</em>, <em>adapt_stepsize=False</em>, <em>target_acceptance_rate=0.65</em>, <em>stepsize_dec=0.9</em>, <em>stepsize_inc=1.1111111111111112</em>, <em>stepsize_min=1e-05</em>, <em>stepsize_max=1000.0</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.__init__" title="Permalink to this definition">¶</a></dt>
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>proposal=None</em>, <em>log_target=None</em>, <em>prior=None</em>, <em>log_likelihood=None</em>, <em>stepsize=0.5</em>, <em>smthd_acceptance_decay=0.9</em>, <em>adapt_stepsize=False</em>, <em>target_acceptance_rate=0.65</em>, <em>stepsize_dec=0.9</em>, <em>stepsize_inc=1.1</em>, <em>stepsize_min=1e-05</em>, <em>stepsize_max=1000.0</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.ais.HAIS.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initialise the HAIS class.</p>
 <p>The proposal and target distribution must be specified in one of two ways:</p>
 <blockquote>
@@ -171,6 +171,7 @@ monotonically increases from 0 to 1 (the values are the
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Module hais.ais</a></li>
 <li class="toctree-l1"><a class="reference internal" href="hmc.html">Module hais.hmc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Module hais.examples</a></li>
 </ul>
 
 <div class="relations">

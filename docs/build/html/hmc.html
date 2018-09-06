@@ -16,6 +16,7 @@
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Module hais.examples" href="examples.html" />
     <link rel="prev" title="Module hais.ais" href="ais.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -96,19 +97,6 @@ Culpepper et al. 2011 “Building a better probabilistic model of images by fact
 </dd></dl>
 
 <dl class="function">
-<dt id="hais.hmc.hmc_updates">
-<code class="descclassname">hais.hmc.</code><code class="descname">hmc_updates</code><span class="sig-paren">(</span><em>x0</em>, <em>eps</em>, <em>smoothed_acceptance_rate</em>, <em>x1</em>, <em>accept</em>, <em>target_acceptance_rate</em>, <em>stepsize_inc</em>, <em>stepsize_dec</em>, <em>stepsize_min</em>, <em>stepsize_max</em>, <em>acceptance_decay</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.hmc_updates" title="Permalink to this definition">¶</a></dt>
-<dd><p>Do HMC updates, that is</p>
-<blockquote>
-<div><ul class="simple">
-<li>update the position according to whether the move was accepted or rejected</li>
-<li>update the step size adaptively according to whether the acceptance rate is high or low</li>
-<li>smooth the acceptance rates (over the iterations)</li>
-</ul>
-</div></blockquote>
-</dd></dl>
-
-<dl class="function">
 <dt id="hais.hmc.kinetic_energy">
 <code class="descclassname">hais.hmc.</code><code class="descname">kinetic_energy</code><span class="sig-paren">(</span><em>v</em>, <em>event_axes</em><span class="sig-paren">)</span><a class="headerlink" href="#hais.hmc.kinetic_energy" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the kinetic energy of the system.</p>
@@ -180,6 +168,7 @@ Note this leapfrog procedure only has one step.</p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="ais.html">Module hais.ais</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Module hais.hmc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Module hais.examples</a></li>
 </ul>
 
 <div class="relations">
@@ -187,6 +176,7 @@ Note this leapfrog procedure only has one step.</p>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
       <li>Previous: <a href="ais.html" title="previous chapter">Module hais.ais</a></li>
+      <li>Next: <a href="examples.html" title="next chapter">Module hais.examples</a></li>
   </ul></li>
 </ul>
 </div>
