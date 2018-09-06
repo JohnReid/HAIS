@@ -101,7 +101,7 @@ def hmc_move(x0, v0, energy_fn, event_axes, eps, gamma=None):
   """
   Make a HMC move.
 
-  Implements the algorithm in 
+  Implements the algorithm in
   Culpepper et al. 2011 "Building a better probabilistic model of images by factorization".
 
   Args:
@@ -137,34 +137,6 @@ def partial_momentum_refresh(vdash, gamma):
   r = tf.random_normal(tf.shape(vdash))
   gamma = tf_expand_tile(gamma, vdash)
   return - tf.sqrt(1 - gamma) * vdash + tf.sqrt(gamma) * r
-
-
-def hmc_updates(x0, eps, smoothed_acceptance_rate, x1, accept,
-                target_acceptance_rate, stepsize_inc, stepsize_dec,
-                stepsize_min, stepsize_max, acceptance_decay):
-  """
-  Do HMC updates, that is
-
-    - update the position according to whether the move was accepted or rejected
-    - update the step size adaptively according to whether the acceptance rate is high or low
-    - smooth the acceptance rates (over the iterations)
-  """
-  #
-  # Increase or decrease step size according to whether we are above or below target (average) acceptance rate
-  # print('smoothed_acceptance_rate: {}'.format(smoothed_acceptance_rate.shape))
-  # print('stepsize_inc: {}'.format(stepsize_inc.shape))
-  # print('stepsize_dec: {}'.format(stepsize_dec.shape))
-  new_eps = tf.where(
-      smoothed_acceptance_rate > target_acceptance_rate,
-      stepsize_inc,
-      stepsize_dec) * eps
-  #
-  # Make sure we stay within specified step size range
-  new_eps = tf.clip_by_value(new_eps, clip_value_min=stepsize_min, clip_value_max=stepsize_max)
-  #
-  # Smooth the acceptance rate
-  new_acceptance_rate = smooth_acceptance_rate(accept, smoothed_acceptance_rate, acceptance_decay)
-  return new_eps, new_acceptance_rate
 
 
 def smooth_acceptance_rate(accept, old_acceptance_rate, acceptance_decay):

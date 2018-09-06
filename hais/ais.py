@@ -63,7 +63,7 @@ class HAIS(object):
                adapt_stepsize = False,
                target_acceptance_rate=.65,
                stepsize_dec = .9,
-               stepsize_inc = 1./.9,
+               stepsize_inc = 1.1,
                stepsize_min = 1e-5,
                stepsize_max = 1e3):
     """

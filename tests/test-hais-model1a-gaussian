@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 
 """
-Test our HAIS implementation on example 1a from http://arxiv.org/abs/1205.1925
+Test our HAIS implementation on model 1a from http://arxiv.org/abs/1205.1925
 
-We name the latent variable 'z' in place of 'a'
-
-The code is set up to estimate the log marginal of several batches (different `x`) concurrently.
-
-When the latent dimensionality, L, is around 5, there is still some considerable variance in the log marginal estimates.
+When the latent dimensionality, L, is around 5, there is still some
+considerable variance in the log marginal estimates.
 """
-
 
 import tensorflow as tf
 import numpy as np
@@ -34,16 +30,18 @@ tfd = tf.contrib.distributions
 # RNG seed
 SEED = 41
 #
-# HMC AIS
-N_ITER = 3000
-N_CHAINS = 400
-STEPSIZE = .025
+# AIS
+N_ITER = 5000
+N_CHAINS = 150
+#
+# HMC
+STEPSIZE = .02
 ADAPT_STEPSIZE = False
 #
 # Model
-BATCH_SIZE = 99  # number of distinct x
+BATCH_SIZE = 16  # number of distinct x
 M = 36  # x dimensions
-L = 3   # z dimensions
+L = 5  # z dimensions
 SIGMA_N = .1
 
 #
@@ -68,7 +66,7 @@ print('Calculated exact marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.form
 
 #
 # Annealed importance sampling
-print('Constructing AIS computation graph')
+print('Constructing computation graph')
 starttime = time.time()
 sampler = ais.HAIS(prior=generative.prior, log_likelihood=generative.log_likelihood, stepsize=STEPSIZE, adapt_stepsize=ADAPT_STEPSIZE)
 #
@@ -90,7 +88,7 @@ sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 #
 # Run AIS
-print('Running AIS')
+print('Running HAIS')
 starttime = time.time()
 log_marginal, logw_ais, z_sampled, eps_final, final_smthd_acceptance_rate = \
     sess.run([log_normalizer, logw, z_i, eps, smthd_acceptance_rate])
@@ -128,7 +126,7 @@ ax.add_line(lines.Line2D([lower, upper], [lower, upper], linestyle='dashed', col
 # Acceptance rate
 sns.distplot(final_smthd_acceptance_rate.flatten(), ax=ax_accept)
 ax_accept.axvline(x=sampler.target_acceptance_rate, linestyle='dashed', color='k', alpha=.3)
-ax_accept.set_title('average acceptance rates (per batch per chain)')
+ax_accept.set_title('smoothed acceptance rates (per batch per chain)')
 #
 # Step sizes
 if sampler.adapt_stepsize:

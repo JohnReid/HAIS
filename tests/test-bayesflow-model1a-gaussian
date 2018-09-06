@@ -1,0 +1,119 @@
+#!/usr/bin/env python
+
+"""
+Test TensorFlow's contributed bayesflow HAIS implementation on example 1a
+from http://arxiv.org/abs/1205.1925
+
+We name the latent variable 'z' in place of 'a'
+"""
+
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import lines
+import seaborn as sns
+import tensorflow as tf
+from tensorflow.contrib.bayesflow import hmc
+from hais import examples
+tfd = tf.contrib.distributions
+
+
+#
+# Jupyter magic
+#
+# %load_ext autoreload
+# %autoreload 2
+
+
+#
+# Constants
+#
+# RNG seed
+SEED = 41
+#
+# AIS
+N_ITER = 5000
+N_CHAINS = 150
+#
+# HMC
+STEPSIZE = .02
+#
+# Model
+BATCH_SIZE = 16  # number of distinct x
+M = 36  # x dimensions
+L = 5  # z dimensions
+SIGMA_N = .1
+
+#
+# Seed RNGs
+print('Seeding RNGs')
+np.random.seed(SEED)
+tf.set_random_seed(SEED)
+
+
+#
+# Model
+print('Constructing/sampling model')
+generative = examples.Culpepper1aGaussian(M, L, SIGMA_N, BATCH_SIZE, N_CHAINS)
+
+
+#
+# Exact marginal likelihood
+lp_exact = generative.log_marginal()
+print('Calculated exact marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
+    np.mean(lp_exact), np.std(lp_exact)))
+
+
+#
+# Construct computation graph
+print('Constructing computation graph')
+starttime = time.time()
+initial_z = generative.prior.sample()
+logw, samples, acceptance_probs = hmc.ais_chain(
+    n_iterations=N_ITER, step_size=STEPSIZE, n_leapfrog_steps=1, initial_x=initial_z,
+    target_log_prob_fn=generative.log_posterior, proposal_log_prob_fn=generative.prior.log_prob,
+    event_dims=[2])
+log_normalizer = tf.reduce_logsumexp(logw, axis=1) - np.log(N_CHAINS)
+endtime = time.time()
+print('Constructing graph took {:.1f} seconds'.format(endtime - starttime))
+#
+# Construct and initialise the session
+sess = tf.Session()
+sess.run(tf.global_variables_initializer())
+#
+# Run AIS
+print('Running BayesFlow HAIS')
+starttime = time.time()
+log_marginal, log_w_bf, z_sampled, acceptance_probs_bf = \
+    sess.run([log_normalizer, logw, samples, acceptance_probs])
+endtime = time.time()
+print('AIS took {:.1f} seconds'.format(endtime - starttime))
+print('Estimated marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
+    np.mean(log_marginal), np.std(log_marginal)))
+print('True      marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
+    np.mean(lp_exact), np.std(lp_exact)))
+rho = np.corrcoef(log_marginal, lp_exact)[0, 1]
+print('Correlation between estimates: {:.3f}'.format(rho))
+print('Acceptance probabilities: mean={:.3f}; sd={:.3f}'.format(
+    np.mean(acceptance_probs_bf), np.std(acceptance_probs_bf)))
+
+
+#
+# Plot the output
+print('Plotting log normalizer')
+fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
+ax.scatter(log_marginal, lp_exact)
+ax.set_xlabel('AIS')
+ax.set_ylabel('true')
+ax.set_title('Marginal log likelihoods')
+xmin, xmax = ax.get_xbound()
+ymin, ymax = ax.get_ybound()
+lower = max(xmin, ymin)
+upper = min(xmax, ymax)
+ax.add_line(lines.Line2D([lower, upper], [lower, upper], linestyle='dashed', color='k', alpha=.3))
+#
+# Acceptance rate
+sns.distplot(acceptance_probs_bf.flatten(), ax=ax_accept)
+ax_accept.set_title('acceptance probabilities')
+#
+fig.savefig('bayesflow-model1a-gaussian.pdf')
