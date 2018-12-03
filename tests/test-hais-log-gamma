@@ -64,7 +64,7 @@ SEED = 41
 N_ITER = 3000
 N_CHAINS = 30000
 STEPSIZE = .7
-ADAPT_STEPSIZE=False
+ADAPT_STEPSIZE = False
 
 
 #
@@ -132,6 +132,20 @@ print('Final smoothed acceptance rate: mean={:.3f}; sd={:.3f}'.format(
     np.mean(final_smthd_acceptance_rate), np.std(final_smthd_acceptance_rate)))
 
 
+def plot_samples(ax):
+  # ax.scatter(log_normalizer_ais, log_normalizer_true)
+  ax.set_xlabel('x')
+  ax.set_ylabel('target')
+  ax.set_title('Samples')
+  z_sampled.shape
+  sns.distplot(z_sampled, ax=ax)
+  xmin, xmax = ax.get_xbound()
+  target_range = np.linspace(xmin, xmax, num=300)
+  target_range.shape
+  target = sess.run(tf.exp(log_target(target_range) - log_normalizer_true))
+  ax.plot(target_range, target)
+
+
 #
 # Plot the output
 print('Plotting log normalizer')
@@ -139,17 +153,7 @@ if model.adapt_stepsize:
   fig, (ax, ax_accept, ax_stepsize) = plt.subplots(3, 1, figsize=(8, 12))
 else:
   fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
-# ax.scatter(log_normalizer_ais, log_normalizer_true)
-ax.set_xlabel('x')
-ax.set_ylabel('target')
-ax.set_title('Samples')
-z_sampled.shape
-sns.distplot(z_sampled, ax=ax)
-xmin, xmax = ax.get_xbound()
-target_range = np.linspace(xmin, xmax, num=300)
-target_range.shape
-target = sess.run(tf.exp(log_target(target_range) - log_normalizer_true))
-ax.plot(target_range, target)
+plot_samples(ax)
 #
 # Acceptance rate
 sns.distplot(final_smthd_acceptance_rate.flatten(), ax=ax_accept)
@@ -163,3 +167,8 @@ if model.adapt_stepsize:
   ax_stepsize.set_title('Step sizes (per batch per chain)')
 #
 fig.savefig('hais-log-gamma.pdf')
+#
+# Make another figure just of samples
+fig, ax = plt.subplots(figsize=(8, 6))
+plot_samples(ax)
+fig.savefig('hais-log-gamma-samples.png', dpi=300)

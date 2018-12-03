@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Test TensorFlow's contributed bayesflow HAIS implementation on example 1a
+Test TensorFlow's contributed BayesFlow HAIS implementation on example 1a
 from http://arxiv.org/abs/1205.1925
 
 We name the latent variable 'z' in place of 'a'
@@ -9,6 +9,7 @@ We name the latent variable 'z' in place of 'a'
 
 import time
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import lines
 import seaborn as sns
@@ -99,11 +100,17 @@ print('Acceptance probabilities: mean={:.3f}; sd={:.3f}'.format(
 
 
 #
+# Save the estimates
+df = pd.DataFrame({'estimate': log_marginal, 'true': lp_exact, 'method': 'BayesFlow'})
+df.to_csv('BayesFlow.csv', index=False)
+
+
+#
 # Plot the output
 print('Plotting log normalizer')
 fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
 ax.scatter(log_marginal, lp_exact)
-ax.set_xlabel('AIS')
+ax.set_xlabel('BayesFlow')
 ax.set_ylabel('true')
 ax.set_title('Marginal log likelihoods')
 xmin, xmax = ax.get_xbound()

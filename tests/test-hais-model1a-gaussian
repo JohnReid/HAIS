@@ -6,6 +6,7 @@ Test our HAIS implementation on model 1a with a Gaussian prior from http://arxiv
 
 import tensorflow as tf
 import numpy as np
+import pandas as pd
 from hais import ais, examples
 import matplotlib.pyplot as plt
 from matplotlib import lines
@@ -103,6 +104,10 @@ print('Final smoothed acceptance rate: mean={:.3f}; sd={:.3f}'.format(
     np.mean(final_smthd_acceptance_rate), np.std(final_smthd_acceptance_rate)))
 
 
+# Save the estimates
+pd.DataFrame({'estimate': log_marginal, 'true': lp_exact, 'method': 'HAIS'})
+
+
 #
 # Plot the output
 print('Plotting marginal log likelihoods')
@@ -111,7 +116,7 @@ if sampler.adapt_stepsize:
 else:
   fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
 ax.scatter(log_marginal, lp_exact)
-ax.set_xlabel('AIS')
+ax.set_xlabel('HAIS')
 ax.set_ylabel('true')
 ax.set_title('Marginal log likelihoods')
 xmin, xmax = ax.get_xbound()
