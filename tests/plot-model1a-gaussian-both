@@ -1,0 +1,24 @@
+#!/usr/bin/env python
+
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib import lines
+import seaborn as sns
+
+#
+# Read estimates
+bf = pd.read_csv('BayesFlow.csv')
+hais = pd.read_csv('HAIS.csv')
+df = bf.append(hais)
+
+#
+# Plot estimates
+fig, ax = plt.subplots()
+ax = sns.scatterplot(x="estimate", y="true", hue="method", data=df)
+ax.set_title('Marginal log likelihoods')
+xmin, xmax = ax.get_xbound()
+ymin, ymax = ax.get_ybound()
+lower = max(xmin, ymin)
+upper = min(xmax, ymax)
+ax.add_line(lines.Line2D([lower, upper], [lower, upper], linestyle='dashed', color='k', alpha=.3))
+fig.savefig('model1a-gaussian-estimates.png', dpi=300)
