@@ -104,8 +104,10 @@ print('Final smoothed acceptance rate: mean={:.3f}; sd={:.3f}'.format(
     np.mean(final_smthd_acceptance_rate), np.std(final_smthd_acceptance_rate)))
 
 
+#
 # Save the estimates
-pd.DataFrame({'estimate': log_marginal, 'true': lp_exact, 'method': 'HAIS'})
+df = pd.DataFrame({'estimate': log_marginal, 'true': lp_exact, 'method': 'HAIS'})
+df.to_csv('HAIS.csv', index=False)
 
 
 #
