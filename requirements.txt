@@ -1,14 +1,14 @@
 #
 # Computation
-#
 scipy
 #
 # Plotting
-#
 matplotlib
 seaborn
 #
 # Documentation
-#
 sphinx
 sphinxcontrib-napoleon
+#
+# This package
+-e .

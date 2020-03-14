@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Test our Hamiltonian Monte Carlo sampler by sampling from a multivariate normal.
+Test our Hamiltonian annealed importance sampler by on a multivariate normal.
 """
 
 
@@ -10,11 +10,18 @@ import hais.hmc as hmc
 import numpy as np
 import scipy.stats as st
 import scipy.linalg as la
-import tensorflow as tf
 import matplotlib.pyplot as plt
 import seaborn as sns
-tfd = tf.contrib.distributions
-
+import tensorflow as tf
+from packaging import version
+if version.parse(tf.__version__) < version.parse('2.0.0'):
+    # TensorFlow version 1
+    tfd = tf.contrib.distributions
+else:
+    # TensorFlow version 2
+    import tensorflow_probability as tfp
+    tfd = tfp.distributions
+    tf = tf.compat.v1
 
 #
 # Jupyter magic
@@ -62,18 +69,18 @@ def unnormalized_log_target(x):
   return lp
 
 
-
 #
 # Model
 #
 # Use Bayesian conjugate priors for mean and covariance.
 #
-Sigma = st.invwishart.rvs(df = NU, scale = PSI)
+Sigma = st.invwishart.rvs(df=NU, scale=PSI)
 print('MVN covariance: {}'.format(Sigma))
 mu = st.multivariate_normal.rvs(mean=MU0, cov=Sigma / M)
 print('MVN mean: {}'.format(mu))
 #
 # Calculate Cholesky decomposition and inverse
+print('Calculating Cholesky decomposition')
 C = la.cholesky(Sigma, lower=True)
 Cinv = la.solve_triangular(C, np.diag(np.ones(L)), lower=True)
 # Sigma - C @ C.T
@@ -82,17 +89,21 @@ Cinv = la.solve_triangular(C, np.diag(np.ones(L)), lower=True)
 
 #
 # Prior for initial x
+print('Constructing prior tensor')
 prior = tfd.MultivariateNormalDiag(loc=tf.zeros((NCHAINS, L)))
 #
 # Our samples
+print('Constructing samples tensor')
 samples = tf.TensorArray(dtype=tf.float32, size=NITER, element_shape=(NCHAINS, L))
 #
 # Sample
+print('Creating sampling computation graph')
 x, v, samples_final, smoothed_accept_rate_final = hmc.hmc_sample(
     prior.sample(), unnormalized_log_target, eps=STEPSIZE,
     niter=NITER, nchains=NCHAINS, sample_shape=(L,), event_axes=(1,))
 #
 # Construct and initialise the session
+print('Initialising session')
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 #
@@ -106,7 +117,7 @@ print('Final smoothed acceptance rate: mean={:.1g}; sd={:.1g}'.format(
     np.mean(accept_hmc), np.std(accept_hmc)))
 samples_hmc.shape
 burned_in = samples_hmc[int(NITER / 2):]
-burned_in.shape
+burned_in.shapegraph
 burned_in.size / 1e6
 for d in range(L):
   print('Mean of (burned in) samples (dim {}): {:.3g}'.format(d, np.mean(burned_in[:, :, d])))
@@ -141,3 +152,5 @@ print('Plotting acceptance rate')
 sns.distplot(accept_hmc.flatten(), ax=ax_accept)
 ax_accept.set_title('Smoothed acceptance rates')
 fig.savefig('hmc-mvn-samples.pdf')
+
+print('Done')
