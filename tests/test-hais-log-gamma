@@ -25,18 +25,24 @@ of variables :math:`y = \\log(x)` we have the density for a log-gamma distributi
 
 
 import time
-#
-# Scientific
 import numpy as np
 import scipy.special as sp
 from hais import ais
-#
-# Tensorflow
-import tensorflow as tf
-#
-# Plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
+import tensorflow as tf
+import tensorflow_probability as tfp
+from packaging import version
+from pathlib import Path
+
+
+# Configure TensorFlow depending on version
+print(f'TensorFlow version: {tf.__version__}')
+if version.parse(tf.__version__) >= version.parse('2.0.0'):
+    # TensorFlow version 2
+    print('Using TFv1 compatibility mode in TF2.')
+    tf.compat.v1.disable_eager_execution()
+    tf = tf.compat.v1
 
 
 #
@@ -52,22 +58,24 @@ import seaborn as sns
 # normal parameters
 MU = 1.
 SIGMA = .5
-#
+
 # log-gamma parameters
 ALPHA = 2.
 BETA = 3.
-#
+
 # RNG seed
 SEED = 41
-#
+
 # HMC AIS
 N_ITER = 3000
 N_CHAINS = 30000
 STEPSIZE = .7
 ADAPT_STEPSIZE = False
+OUTDIR = Path('output')
 
+# Create the output directory if needed
+OUTDIR.mkdir(exist_ok=True, parents=True)
 
-#
 # Seed RNGs
 print('Seeding RNGs')
 np.random.seed(SEED)
@@ -87,33 +95,32 @@ def unnormalized_log_gamma_lpdf(x):
   # assert x.shape == (N_CHAINS,)
   return ALPHA * x - BETA * tf.exp(x)
 
-#
+
 # Calculate the true log normalizer
 log_target, log_normalizer_true = \
     unnormalized_log_gamma_lpdf, sp.gammaln(ALPHA) - ALPHA * np.log(BETA)
 
 
-#
 # Annealed importance sampling
 print('Constructing AIS computation graph')
 starttime = time.time()
-proposal = tf.distributions.Normal(loc=tf.zeros(N_CHAINS), scale=tf.ones(N_CHAINS))
+proposal = tfp.distributions.Normal(loc=tf.zeros(N_CHAINS), scale=tf.ones(N_CHAINS))
 # model = ais.HAIS(qz=prior, log_likelihood_fn=unnormalized_log_gamma_lpdf)
 model = ais.HAIS(proposal=proposal, log_target=log_target, stepsize=STEPSIZE, adapt_stepsize=ADAPT_STEPSIZE)
-#
+
 # Set up an annealing schedule
 schedule = ais.get_schedule(T=N_ITER, r=4)
-#
+
 # Set up the computation graph
 logw, z_i, eps, avg_acceptance_rate = model.ais(schedule)
 log_normalizer = model.log_normalizer(logw, samples_axis=0)
 endtime = time.time()
 print('Constructing graph took {:.1g} seconds'.format(endtime - starttime))
-#
+
 # Construct and initialise the session
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
-#
+
 # Run AIS
 print('Running AIS')
 starttime = time.time()
@@ -146,29 +153,31 @@ def plot_samples(ax):
   ax.plot(target_range, target)
 
 
-#
 # Plot the output
-print('Plotting log normalizer')
+out_path = OUTDIR / 'hais-log-gamma.pdf'
+print(f'Plotting log normalizer: {out_path}')
 if model.adapt_stepsize:
   fig, (ax, ax_accept, ax_stepsize) = plt.subplots(3, 1, figsize=(8, 12))
 else:
   fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
 plot_samples(ax)
-#
+
 # Acceptance rate
 sns.distplot(final_smthd_acceptance_rate.flatten(), ax=ax_accept)
 ax_accept.axvline(x=model.target_acceptance_rate, linestyle='dashed', color='k', alpha=.3)
 ax_accept.set_title('average acceptance rates (per batch per chain)')
-#
+
 # Step sizes
 if model.adapt_stepsize:
   sns.distplot(eps_final.flatten(), ax=ax_stepsize)
   ax_stepsize.axvline(x=model.stepsize, linestyle='dashed', color='k', alpha=.3)
   ax_stepsize.set_title('Step sizes (per batch per chain)')
-#
-fig.savefig('hais-log-gamma.pdf')
-#
+fig.savefig(out_path)
+
+
 # Make another figure just of samples
 fig, ax = plt.subplots(figsize=(8, 6))
 plot_samples(ax)
-fig.savefig('hais-log-gamma-samples.png', dpi=300)
+samples_path = OUTDIR / 'hais-log-gamma-samples.png'
+print(f'Saving samples: {samples_path}')
+fig.savefig(samples_path, dpi=300)

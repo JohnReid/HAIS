@@ -60,12 +60,12 @@ class HAIS(object):
                log_likelihood=None,
                stepsize=.5,
                smthd_acceptance_decay=0.9,
-               adapt_stepsize = False,
+               adapt_stepsize=False,
                target_acceptance_rate=.65,
-               stepsize_dec = .9,
-               stepsize_inc = 1.1,
-               stepsize_min = 1e-5,
-               stepsize_max = 1e3):
+               stepsize_dec=.9,
+               stepsize_inc=1.1,
+               stepsize_min=1e-5,
+               stepsize_max=1e3):
     """
     Initialise the HAIS class.
 
@@ -175,7 +175,7 @@ class HAIS(object):
     i = tf.constant(0)
     logw = tf.zeros(self.batch_shape)
     z0 = self.q.sample()
-    v0 = tf.random_normal(tf.shape(z0))
+    v0 = tf.random.normal(shape=tf.shape(z0))
     if self.adapt_stepsize:
       eps0 = tf.constant(self.stepsize, shape=self.batch_shape, dtype=tf.float32)
     else:
@@ -253,4 +253,4 @@ class HAIS(object):
     """The log of the mean (over the `samples_axis`) of :math:`e^{logw}`
     """
     return tf.reduce_logsumexp(logw, axis=samples_axis) \
-        - tf.log(tf.cast(tf.shape(logw)[samples_axis], dtype=tf.float32))
+        - tf.math.log(tf.cast(tf.shape(logw)[samples_axis], dtype=tf.float32))

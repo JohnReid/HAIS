@@ -11,6 +11,15 @@ import scipy.stats as st
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import seaborn as sns
+from packaging import version
+from pathlib import Path
+
+#
+# Configure TensorFlow depending on version
+print(f'TensorFlow version: {tf.__version__}')
+if version.parse(tf.__version__) >= version.parse('2.0.0'):
+    # TensorFlow version 2
+    tf = tf.compat.v1
 
 
 #
@@ -34,7 +43,11 @@ STEPSIZE = .5
 # STEPSIZE_MAX = 500
 # STEPSIZE_DEC = .99
 # STEPSIZE_INC = 1.01
+OUTDIR = Path('output')
 
+#
+# Create the output directory if needed
+OUTDIR.mkdir(exist_ok=True, parents=True)
 
 #
 # Seed RNGs
@@ -49,6 +62,7 @@ def unnormalized_normal_lpdf(x):
   # print(x.shape)
   assert x.shape == (NCHAINS,)
   return - tf.square((x - MU) / SIGMA) / 2.
+
 
 #
 # Prior for initial x
@@ -86,7 +100,8 @@ burned_in.shape
 
 #
 # Plot samples
-print('Plotting samples')
+samples_path = OUTDIR / 'hmc-samples.pdf'
+print(f'Plotting samples: {samples_path}')
 fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
 sns.distplot(burned_in.flatten(), ax=ax)
 ax.set_xlabel('x')
@@ -100,4 +115,4 @@ ax.plot(xpdf, st.norm.pdf(xpdf, loc=MU, scale=SIGMA), linestyle='dotted', lw=1, 
 print('Plotting acceptance rate')
 sns.distplot(accept_hmc.flatten(), ax=ax_accept)
 ax_accept.set_title('Smoothed acceptance rates')
-fig.savefig('hmc-samples.pdf')
+fig.savefig(samples_path)

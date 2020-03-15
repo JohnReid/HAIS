@@ -4,8 +4,17 @@ Implementation of Hamiltonian Monte Carlo.
 Currently only makes leapfrog moves with one step as that is all that is needed for HAIS.
 """
 
+from packaging import version
 import tensorflow as tf
 
+#
+# Configure TensorFlow depending on version
+if version.parse(tf.__version__) >= version.parse('2.0.0'):
+    # TensorFlow version 2
+    tf = tf.compat.v1
+elif version.parse(tf.__version__) >= version.parse('1.15'):
+    tf.compat.v1.disable_eager_execution()
+    tf = tf.compat.v1
 
 
 def tf_expand_rank(input_, rank):
@@ -69,7 +78,7 @@ def metropolis_hastings_accept(E0, E1):
   Accept or reject a move based on the energies of the two states.
   """
   ediff = E0 - E1
-  return ediff >= tf.log(tf.random_uniform(shape=tf.shape(ediff)))
+  return ediff >= tf.math.log(tf.random.uniform(shape=tf.shape(ediff)))
 
 
 def leapfrog(x0, v0, eps, energy_fn):
@@ -94,7 +103,7 @@ def default_gamma(eps):
 
   Follows equation 11. in Culpepper et al. (2011)
   """
-  return 1. - tf.exp(eps * tf.log(1 / 2.))
+  return 1. - tf.math.exp(eps * tf.math.log(1 / 2.))
 
 
 def hmc_move(x0, v0, energy_fn, event_axes, eps, gamma=None):
@@ -134,7 +143,7 @@ def partial_momentum_refresh(vdash, gamma):
   """
   # There is some disagreement between the above paper and the description of STEP 4.
   # Specifically the second sqrt below is omitted in the description of STEP 4.
-  r = tf.random_normal(tf.shape(vdash))
+  r = tf.random.normal(tf.shape(vdash))
   gamma = tf_expand_tile(gamma, vdash)
   return - tf.sqrt(1 - gamma) * vdash + tf.sqrt(gamma) * r
 
@@ -143,7 +152,9 @@ def smooth_acceptance_rate(accept, old_acceptance_rate, acceptance_decay):
   #
   # Smooth the acceptance rate
   assert accept.shape == old_acceptance_rate.shape
-  new_acceptance_rate = tf.add(acceptance_decay * old_acceptance_rate, (1.0 - acceptance_decay) * tf.to_float(accept))
+  new_acceptance_rate = tf.add(
+      acceptance_decay * old_acceptance_rate,
+      (1.0 - acceptance_decay) * tf.cast(accept, old_acceptance_rate.dtype, name='cast_accept'))
   return new_acceptance_rate
 
 

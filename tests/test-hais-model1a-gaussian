@@ -4,7 +4,6 @@
 Test our HAIS implementation on model 1a with a Gaussian prior from http://arxiv.org/abs/1205.1925
 """
 
-import tensorflow as tf
 import numpy as np
 import pandas as pd
 from hais import ais, examples
@@ -12,7 +11,22 @@ import matplotlib.pyplot as plt
 from matplotlib import lines
 import seaborn as sns
 import time
-tfd = tf.contrib.distributions
+import tensorflow as tf
+from packaging import version
+from pathlib import Path
+
+
+# Configure TensorFlow depending on version
+print(f'TensorFlow version: {tf.__version__}')
+if version.parse(tf.__version__) >= version.parse('2.0.0'):
+    # TensorFlow version 2
+    print('Using TFv1 compatibility mode in TF2.')
+    tf.compat.v1.disable_eager_execution()
+    tf = tf.compat.v1
+elif version.parse(tf.__version__) >= version.parse('1.15'):
+    print('Using TFv1 compatibility mode in TF1.15.')
+    tf.compat.v1.disable_eager_execution()
+    tf = tf.compat.v1
 
 
 #
@@ -25,66 +39,67 @@ tfd = tf.contrib.distributions
 #
 # Constants
 #
+
 # RNG seed
 SEED = 41
-#
+
 # AIS
 N_ITER = 5000
 N_CHAINS = 150
-#
+
 # HMC
 STEPSIZE = .02
 ADAPT_STEPSIZE = False
-#
+
 # Model
 BATCH_SIZE = 16  # number of distinct x
 M = 36  # x dimensions
 L = 5  # z dimensions
 SIGMA_N = .1
 
-#
+# Create the output directory if needed
+OUTDIR = Path('output')
+OUTDIR.mkdir(exist_ok=True, parents=True)
+
 # Seed RNGs
 print('Seeding RNGs')
 np.random.seed(SEED)
 tf.set_random_seed(SEED)
 
-
-#
 # Model
 print('Constructing/sampling model')
 generative = examples.Culpepper1aGaussian(M, L, SIGMA_N, BATCH_SIZE, N_CHAINS)
 
-
-#
 # Exact marginal likelihood
 lp_exact = generative.log_marginal()
 print('Calculated exact marginal log likelihood(s): mean={:.1f}; sd={:.1f}'.format(
     np.mean(lp_exact), np.std(lp_exact)))
 
-
-#
 # Annealed importance sampling
 print('Constructing computation graph')
 starttime = time.time()
-sampler = ais.HAIS(prior=generative.prior, log_likelihood=generative.log_likelihood, stepsize=STEPSIZE, adapt_stepsize=ADAPT_STEPSIZE)
-#
+sampler = ais.HAIS(prior=generative.prior,
+                   log_likelihood=generative.log_likelihood,
+                   stepsize=STEPSIZE,
+                   adapt_stepsize=ADAPT_STEPSIZE)
+
 # Set up an annealing schedule
 schedule = ais.get_schedule(T=N_ITER, r=4)
-#
+
 # Set up the computation graph
 logw, z_i, eps, smthd_acceptance_rate = sampler.ais(schedule)
-#
+
 # Calculate the log normalizer (aka log marginal), remember batches are in dimension 0, chains in dimension 1
 log_normalizer = sampler.log_normalizer(logw, samples_axis=1)
 endtime = time.time()
 print('Constructing graph took {:.1g} seconds'.format(endtime - starttime))
-#
+
 # Construct and initialise the session
 sess = tf.Session()
 # merged = tf.summary.merge_all()
 # summary_writer = tf.summary.FileWriter('logs')
 sess.run(tf.global_variables_initializer())
-#
+
 # Run AIS
 print('Running HAIS')
 starttime = time.time()
@@ -103,16 +118,15 @@ print('Final step sizes: mean={:.3g}; sd={:.3g}'.format(
 print('Final smoothed acceptance rate: mean={:.3f}; sd={:.3f}'.format(
     np.mean(final_smthd_acceptance_rate), np.std(final_smthd_acceptance_rate)))
 
-
-#
 # Save the estimates
+csv_path = OUTDIR / 'HAIS.csv'
+print(f'Saving estimates: {csv_path}')
 df = pd.DataFrame({'estimate': log_marginal, 'true': lp_exact, 'method': 'HAIS'})
-df.to_csv('HAIS.csv', index=False)
+df.to_csv(csv_path, index=False)
 
-
-#
 # Plot the output
-print('Plotting marginal log likelihoods')
+fig_path = OUTDIR / 'hais-model1a-gaussian.pdf'
+print(f'Plotting marginal log likelihoods: {fig_path}')
 if sampler.adapt_stepsize:
   fig, (ax, ax_accept, ax_stepsize) = plt.subplots(3, 1, figsize=(8, 12))
 else:
@@ -126,16 +140,15 @@ ymin, ymax = ax.get_ybound()
 lower = max(xmin, ymin)
 upper = min(xmax, ymax)
 ax.add_line(lines.Line2D([lower, upper], [lower, upper], linestyle='dashed', color='k', alpha=.3))
-#
+
 # Acceptance rate
 sns.distplot(final_smthd_acceptance_rate.flatten(), ax=ax_accept)
 ax_accept.axvline(x=sampler.target_acceptance_rate, linestyle='dashed', color='k', alpha=.3)
 ax_accept.set_title('smoothed acceptance rates (per batch per chain)')
-#
+
 # Step sizes
 if sampler.adapt_stepsize:
   sns.distplot(eps_final.flatten(), ax=ax_stepsize)
   ax_stepsize.axvline(x=sampler.stepsize, linestyle='dashed', color='k', alpha=.3)
   ax_stepsize.set_title('Step sizes (per batch per chain)')
-#
-fig.savefig('hais-model1a-gaussian.pdf')
+fig.savefig(fig_path)

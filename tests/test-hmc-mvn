@@ -14,6 +14,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
 from packaging import version
+from pathlib import Path
+
+#
+# Configure TensorFlow depending on version
+print(f'TensorFlow version: {tf.__version__}')
 if version.parse(tf.__version__) < version.parse('2.0.0'):
     # TensorFlow version 1
     tfd = tf.contrib.distributions
@@ -30,6 +35,7 @@ else:
 # %autoreload 2
 
 
+OUTDIR = Path('output')
 SEED = 37
 NCHAINS = 2000
 NITER = 1000
@@ -48,6 +54,9 @@ STEPSIZE = .1
 # STEPSIZE_DEC = .99
 # STEPSIZE_INC = 1.01
 
+#
+# Create the output directory if needed
+OUTDIR.mkdir(exist_ok=True, parents=True)
 
 #
 # Seed RNGs
@@ -117,7 +126,7 @@ print('Final smoothed acceptance rate: mean={:.1g}; sd={:.1g}'.format(
     np.mean(accept_hmc), np.std(accept_hmc)))
 samples_hmc.shape
 burned_in = samples_hmc[int(NITER / 2):]
-burned_in.shapegraph
+# burned_in.shapegraph
 burned_in.size / 1e6
 for d in range(L):
   print('Mean of (burned in) samples (dim {}): {:.3g}'.format(d, np.mean(burned_in[:, :, d])))
@@ -138,7 +147,8 @@ burned_in.shape
 
 #
 # Plot samples
-print('Plotting samples')
+samples_path = OUTDIR / 'hmc-mvn-samples.pdf'
+print(f'Plotting samples: {samples_path}')
 plt.contour
 d0, d1 = 0, 1
 fig, (ax, ax_accept) = plt.subplots(2, 1, figsize=(8, 12))
@@ -148,9 +158,9 @@ ax.set_ylabel('dim {}'.format(d1))
 ax.set_title('Samples')
 #
 # Acceptance rate
-print('Plotting acceptance rate')
+print('Plotting acceptance rate: {samples_path}')
 sns.distplot(accept_hmc.flatten(), ax=ax_accept)
 ax_accept.set_title('Smoothed acceptance rates')
-fig.savefig('hmc-mvn-samples.pdf')
+fig.savefig(samples_path)
 
 print('Done')

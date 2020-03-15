@@ -6,13 +6,19 @@ Unnormalised targets and exact calculations for some example problems.
 
 """
 
-
+from packaging import version
 import numpy as np
 import scipy.linalg as la
 import scipy.special as sp
 import scipy.stats as st
 import tensorflow as tf
-tfd = tf.contrib.distributions
+import tensorflow_probability as tfp
+tfd = tfp.distributions
+
+# Configure TensorFlow depending on version
+if version.parse(tf.__version__) >= version.parse('2.0.0'):
+    # TensorFlow version 2
+    tf = tf.compat.v1
 
 
 LOG_2_PI = np.log(2. * np.pi)
@@ -106,7 +112,7 @@ class Culpepper1aGaussian(object):
             tf.expand_dims(z, axis=-1)),
         axis=-1)
     assert (self.batch_size, self.n_chains, self.M) == loc.shape
-    x_given_z = tfd.MultivariateNormalDiag(loc=tf.cast(loc, tf.float32), scale_identity_multiplier=self.sigma_n)
+    x_given_z = tfd.MultivariateNormalDiag(loc=tf.cast(loc, tf.float32), scale_diag=self.sigma_n * tf.ones(self.M))
     return x_given_z.log_prob(
         tf.tile(tf.expand_dims(self.x_tf, axis=1), [1, self.n_chains, 1]), name='log_likelihood')
 
